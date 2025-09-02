@@ -1,14 +1,16 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   FolderOpen, 
   CheckSquare, 
   Menu,
   X,
-  User
+  User,
+  LogOut
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { authApi } from '../services/api';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -16,19 +18,31 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const user = authApi.getCurrentUser();
+    setCurrentUser(user);
+  }, []);
 
   const navigation = [
-    { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Projects', href: '/projects', icon: FolderOpen },
     { name: 'Tasks', href: '/tasks', icon: CheckSquare },
   ];
 
   const isActive = (href: string) => {
-    if (href === '/') {
-      return location.pathname === '/';
+    if (href === '/dashboard') {
+      return location.pathname === '/dashboard' || location.pathname === '/';
     }
     return location.pathname.startsWith(href);
+  };
+
+  const handleLogout = () => {
+    authApi.logout();
+    navigate('/login');
   };
 
   return (
@@ -79,6 +93,34 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             })}
           </div>
         </nav>
+
+        {/* User info and logout */}
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200">
+          {currentUser && (
+            <div className="space-y-3">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
+                  <User className="h-4 w-4 text-primary-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">
+                    {currentUser.username}
+                  </p>
+                  <p className="text-xs text-gray-500 truncate">
+                    {currentUser.email}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center justify-center px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-md transition-colors"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Sign Out
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Main content */}
@@ -94,10 +136,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </button>
             
             <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2 text-sm text-gray-500">
-                <User className="h-4 w-4" />
-                <span>Welcome, User</span>
-              </div>
+              {currentUser && (
+                <div className="flex items-center space-x-2 text-sm text-gray-500">
+                  <User className="h-4 w-4" />
+                  <span>Welcome, {currentUser.username}</span>
+                </div>
+              )}
             </div>
           </div>
         </div>

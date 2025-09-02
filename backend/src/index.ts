@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import tasksRouter from './routes/tasks';
 import projectsRouter from './routes/projects';
 import authRouter from './routes/auth';
+import usersRouter from './routes/users';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -17,6 +18,7 @@ app.use(express.json());
 app.use('/api/tasks', tasksRouter);
 app.use('/api/projects', projectsRouter);
 app.use('/api/auth', authRouter);
+app.use('/api/users', usersRouter);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

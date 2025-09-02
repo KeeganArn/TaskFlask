@@ -11,6 +11,8 @@ const Tasks: React.FC = () => {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterPriority, setFilterPriority] = useState<string>('all');
+  const [filterProject, setFilterProject] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState<string>('');
   const [formData, setFormData] = useState<CreateTaskRequest>({
     title: '',
     description: '',
@@ -106,6 +108,9 @@ const Tasks: React.FC = () => {
   const filteredTasks = tasks.filter(task => {
     if (filterStatus !== 'all' && task.status !== filterStatus) return false;
     if (filterPriority !== 'all' && task.priority !== filterPriority) return false;
+    if (filterProject !== 'all' && task.projectId !== filterProject) return false;
+    if (searchTerm && !task.title.toLowerCase().includes(searchTerm.toLowerCase()) && 
+        !task.description.toLowerCase().includes(searchTerm.toLowerCase())) return false;
     return true;
   });
 
@@ -252,9 +257,21 @@ const Tasks: React.FC = () => {
 
       {/* Filters */}
       <div className="card">
-        <div className="flex items-center space-x-4">
-          <Filter className="h-5 w-5 text-gray-400" />
-          <div className="flex space-x-4">
+        <div className="flex flex-col md:flex-row items-start md:items-center space-y-4 md:space-y-0 md:space-x-4">
+          <div className="flex items-center space-x-2">
+            <Filter className="h-5 w-5 text-gray-400" />
+            <span className="text-sm font-medium text-gray-700">Filters:</span>
+          </div>
+          
+          <div className="flex flex-wrap items-center space-x-4">
+            <input
+              type="text"
+              placeholder="Search tasks..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="input w-48"
+            />
+            
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
@@ -265,6 +282,7 @@ const Tasks: React.FC = () => {
               <option value="in-progress">In Progress</option>
               <option value="completed">Completed</option>
             </select>
+            
             <select
               value={filterPriority}
               onChange={(e) => setFilterPriority(e.target.value)}
@@ -274,6 +292,19 @@ const Tasks: React.FC = () => {
               <option value="low">Low</option>
               <option value="medium">Medium</option>
               <option value="high">High</option>
+            </select>
+            
+            <select
+              value={filterProject}
+              onChange={(e) => setFilterProject(e.target.value)}
+              className="input w-auto"
+            >
+              <option value="all">All Projects</option>
+              {projects.map(project => (
+                <option key={project.id} value={project.id}>
+                  {project.name}
+                </option>
+              ))}
             </select>
           </div>
         </div>

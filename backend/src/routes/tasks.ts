@@ -117,4 +117,86 @@ router.delete('/:id', async (req: Request, res: Response) => {
   }
 });
 
+// GET /tasks/overdue - Get overdue tasks
+router.get('/overdue', async (req: Request, res: Response) => {
+  try {
+    const result = await pool.query(`
+      SELECT t.*, p.name as project_name 
+      FROM tasks t 
+      LEFT JOIN projects p ON t.project_id = p.id 
+      WHERE t.status != 'completed' 
+      AND t.due_date < CURRENT_DATE
+      ORDER BY t.due_date ASC
+    `);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching overdue tasks:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// PATCH /tasks/bulk - Bulk update tasks
+router.patch('/bulk', async (req: Request, res: Response) => {
+  try {
+    const { ids, updates } = req.body;
+    
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: 'Invalid task IDs' });
+    }
+
+    const updateFields = [];
+    const updateValues = [];
+    let paramIndex = 1;
+
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value !== undefined) {
+        updateFields.push(`${key} = $${paramIndex}`);
+        updateValues.push(value);
+        paramIndex++;
+      }
+    });
+
+    if (updateFields.length === 0) {
+      return res.status(400).json({ message: 'No valid updates provided' });
+    }
+
+    updateFields.push('updated_at = CURRENT_TIMESTAMP');
+    updateValues.push(...ids);
+
+    const query = `
+      UPDATE tasks 
+      SET ${updateFields.join(', ')}
+      WHERE id = ANY($${paramIndex})
+      RETURNING *
+    `;
+
+    const result = await pool.query(query, updateValues);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error bulk updating tasks:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// DELETE /tasks/bulk - Bulk delete tasks
+router.delete('/bulk', async (req: Request, res: Response) => {
+  try {
+    const { ids } = req.body;
+    
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: 'Invalid task IDs' });
+    }
+
+    const result = await pool.query(
+      'DELETE FROM tasks WHERE id = ANY($1) RETURNING id',
+      [ids]
+    );
+
+    res.json({ deletedCount: result.rows.length, deletedIds: result.rows.map(row => row.id) });
+  } catch (error) {
+    console.error('Error bulk deleting tasks:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 export default router;

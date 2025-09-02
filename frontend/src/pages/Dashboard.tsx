@@ -52,6 +52,18 @@ const Dashboard: React.FC = () => {
       icon: TrendingUp,
       color: 'bg-purple-500',
     },
+    {
+      name: 'Overdue',
+      value: tasks.filter(task => {
+        if (task.status === 'completed') return false;
+        const dueDate = new Date(task.dueDate);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        return dueDate < today;
+      }).length,
+      icon: Clock,
+      color: 'bg-red-500',
+    },
   ];
 
   const recentTasks = tasks
@@ -74,7 +86,7 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         {stats.map((stat) => {
           const Icon = stat.icon;
           return (
@@ -92,6 +104,48 @@ const Dashboard: React.FC = () => {
           );
         })}
       </div>
+
+      {/* Overdue Tasks */}
+      {(() => {
+        const overdueTasks = tasks.filter(task => {
+          if (task.status === 'completed') return false;
+          const dueDate = new Date(task.dueDate);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          return dueDate < today;
+        });
+        
+        if (overdueTasks.length > 0) {
+          return (
+            <div className="card border-l-4 border-l-red-500">
+              <h2 className="text-lg font-semibold text-red-700 mb-4">⚠️ Overdue Tasks</h2>
+              <div className="space-y-3">
+                {overdueTasks.map((task) => (
+                  <div key={task.id} className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
+                    <div>
+                      <h3 className="font-medium text-gray-900">{task.title}</h3>
+                      <p className="text-sm text-gray-600">{task.description}</p>
+                      <p className="text-xs text-red-600 mt-1">
+                        Due: {new Date(task.dueDate).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                        task.priority === 'high' ? 'bg-red-100 text-red-800' :
+                        task.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-green-100 text-green-800'
+                      }`}>
+                        {task.priority}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        }
+        return null;
+      })()}
 
       {/* Recent Tasks */}
       <div className="card">

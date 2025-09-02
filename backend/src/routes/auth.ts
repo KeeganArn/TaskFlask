@@ -107,9 +107,24 @@ router.post('/register', async (req: Request, res: Response) => {
 // GET /auth/me - Get current user info (protected route)
 router.get('/me', async (req: Request, res: Response) => {
   try {
-    // This would typically use middleware to verify the JWT token
+    // Extract user ID from JWT token (you'll need to implement JWT middleware)
     // For now, we'll return a placeholder response
-    res.json({ message: 'Protected route - implement JWT middleware' });
+    const userId = req.headers.authorization ? '1' : null;
+    
+    if (!userId) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    const result = await pool.query(
+      'SELECT id, username, email, created_at FROM users WHERE id = $1',
+      [userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    res.json(result.rows[0]);
   } catch (error) {
     console.error('Error getting user info:', error);
     res.status(500).json({ message: 'Internal server error' });
