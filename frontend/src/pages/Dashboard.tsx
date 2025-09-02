@@ -1,0 +1,134 @@
+import React, { useEffect, useState } from 'react';
+import { LayoutDashboard, CheckSquare, FolderOpen, Clock, TrendingUp } from 'lucide-react';
+import { Task, Project } from '../types';
+import { tasksApi, projectsApi } from '../services/api';
+
+const Dashboard: React.FC = () => {
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [tasksData, projectsData] = await Promise.all([
+          tasksApi.getAll(),
+          projectsApi.getAll()
+        ]);
+        setTasks(tasksData);
+        setProjects(projectsData);
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const stats = [
+    {
+      name: 'Total Tasks',
+      value: tasks.length,
+      icon: CheckSquare,
+      color: 'bg-blue-500',
+    },
+    {
+      name: 'Total Projects',
+      value: projects.length,
+      icon: FolderOpen,
+      color: 'bg-green-500',
+    },
+    {
+      name: 'In Progress',
+      value: tasks.filter(task => task.status === 'in-progress').length,
+      icon: Clock,
+      color: 'bg-yellow-500',
+    },
+    {
+      name: 'Completed',
+      value: tasks.filter(task => task.status === 'completed').length,
+      icon: TrendingUp,
+      color: 'bg-purple-500',
+    },
+  ];
+
+  const recentTasks = tasks
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+    .slice(0, 5);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+        <p className="text-gray-600">Welcome to your task management overview</p>
+      </div>
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {stats.map((stat) => {
+          const Icon = stat.icon;
+          return (
+            <div key={stat.name} className="card">
+              <div className="flex items-center">
+                <div className={`p-3 rounded-lg ${stat.color}`}>
+                  <Icon className="h-6 w-6 text-white" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">{stat.name}</p>
+                  <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Recent Tasks */}
+      <div className="card">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Tasks</h2>
+        {recentTasks.length === 0 ? (
+          <p className="text-gray-500">No tasks yet. Create your first task to get started!</p>
+        ) : (
+          <div className="space-y-3">
+            {recentTasks.map((task) => (
+              <div key={task.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div>
+                  <h3 className="font-medium text-gray-900">{task.title}</h3>
+                  <p className="text-sm text-gray-600">{task.description}</p>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                    task.status === 'completed' ? 'bg-green-100 text-green-800' :
+                    task.status === 'in-progress' ? 'bg-yellow-100 text-yellow-800' :
+                    'bg-gray-100 text-gray-800'
+                  }`}>
+                    {task.status.replace('-', ' ')}
+                  </span>
+                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                    task.priority === 'high' ? 'bg-red-100 text-red-800' :
+                    task.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                    'bg-green-100 text-green-800'
+                  }`}>
+                    {task.priority}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default Dashboard;
