@@ -17,16 +17,16 @@ router.post('/login', async (req: Request, res: Response) => {
     }
 
     // Find user by email
-    const userResult = await pool.query(
-      'SELECT id, username, email, password_hash FROM users WHERE email = $1',
+    const [userResult] = await pool.execute(
+      'SELECT id, username, email, password_hash FROM users WHERE email = ?',
       [email]
     );
 
-    if (userResult.rows.length === 0) {
+    if (userResult.length === 0) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    const user = userResult.rows[0];
+    const user = userResult[0];
 
     // Verify password
     const isValidPassword = await bcrypt.compare(password, user.password_hash);
@@ -65,12 +65,12 @@ router.post('/register', async (req: Request, res: Response) => {
     }
 
     // Check if user already exists
-    const existingUser = await pool.query(
-      'SELECT id FROM users WHERE email = $1 OR username = $2',
+    const [existingUser] = await pool.execute(
+      'SELECT id FROM users WHERE email = ? OR username = ?',
       [email, username]
     );
 
-    if (existingUser.rows.length > 0) {
+    if (existingUser.length > 0) {
       return res.status(400).json({ message: 'User with this email or username already exists' });
     }
 
@@ -79,12 +79,18 @@ router.post('/register', async (req: Request, res: Response) => {
     const passwordHash = await bcrypt.hash(password, saltRounds);
 
     // Create new user
-    const result = await pool.query(
-      'INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3) RETURNING id, username, email, created_at',
+    const [result] = await pool.execute(
+      'INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)',
       [username, email, passwordHash]
     );
 
-    const newUser = result.rows[0];
+    // Get the inserted user
+    const [newUserResult] = await pool.execute(
+      'SELECT id, username, email, created_at FROM users WHERE id = ?',
+      [result.insertId]
+    );
+
+    const newUser = newUserResult[0];
 
     // Generate JWT token
     const token = jwt.sign(
@@ -115,16 +121,16 @@ router.get('/me', async (req: Request, res: Response) => {
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
-    const result = await pool.query(
-      'SELECT id, username, email, created_at FROM users WHERE id = $1',
+    const [result] = await pool.execute(
+      'SELECT id, username, email, created_at FROM users WHERE id = ?',
       [userId]
     );
 
-    if (result.rows.length === 0) {
+    if (result.length === 0) {
       return res.status(404).json({ message: 'User not found' });
     }
     
-    res.json(result.rows[0]);
+    res.json(result[0]);
   } catch (error) {
     console.error('Error getting user info:', error);
     res.status(500).json({ message: 'Internal server error' });

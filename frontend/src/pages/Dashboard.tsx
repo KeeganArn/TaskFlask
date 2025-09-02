@@ -7,54 +7,64 @@ const Dashboard: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
-      try {
-        const [tasksData, projectsData] = await Promise.all([
-          tasksApi.getAll(),
-          projectsApi.getAll()
-        ]);
-        setTasks(tasksData);
-        setProjects(projectsData);
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-      } finally {
-        setLoading(false);
-      }
+             try {
+         const [tasksData, projectsData] = await Promise.all([
+           tasksApi.getAll(),
+           projectsApi.getAll()
+         ]);
+         
+         console.log('Tasks API response:', tasksData);
+         console.log('Projects API response:', projectsData);
+         
+         setTasks(tasksData);
+         setProjects(projectsData);
+       } catch (error) {
+         console.error('Error fetching dashboard data:', error);
+         setError('Failed to load dashboard data');
+       } finally {
+         setLoading(false);
+       }
     };
 
     fetchData();
   }, []);
 
+  // Ensure tasks and projects are arrays
+  const safeTasks = Array.isArray(tasks) ? tasks : [];
+  const safeProjects = Array.isArray(projects) ? projects : [];
+
   const stats = [
     {
       name: 'Total Tasks',
-      value: tasks.length,
+      value: safeTasks.length,
       icon: CheckSquare,
       color: 'bg-blue-500',
     },
     {
       name: 'Total Projects',
-      value: projects.length,
+      value: safeProjects.length,
       icon: FolderOpen,
       color: 'bg-green-500',
     },
     {
       name: 'In Progress',
-      value: tasks.filter(task => task.status === 'in-progress').length,
+      value: safeTasks.filter(task => task.status === 'in-progress').length,
       icon: Clock,
       color: 'bg-yellow-500',
     },
     {
       name: 'Completed',
-      value: tasks.filter(task => task.status === 'completed').length,
+      value: safeTasks.filter(task => task.status === 'completed').length,
       icon: TrendingUp,
       color: 'bg-purple-500',
     },
     {
       name: 'Overdue',
-      value: tasks.filter(task => {
+      value: safeTasks.filter(task => {
         if (task.status === 'completed') return false;
         const dueDate = new Date(task.dueDate);
         const today = new Date();
@@ -66,7 +76,7 @@ const Dashboard: React.FC = () => {
     },
   ];
 
-  const recentTasks = tasks
+  const recentTasks = safeTasks
     .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
     .slice(0, 5);
 
@@ -74,6 +84,22 @@ const Dashboard: React.FC = () => {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">{error}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          >
+            Retry
+          </button>
+        </div>
       </div>
     );
   }
@@ -107,7 +133,7 @@ const Dashboard: React.FC = () => {
 
       {/* Overdue Tasks */}
       {(() => {
-        const overdueTasks = tasks.filter(task => {
+        const overdueTasks = safeTasks.filter(task => {
           if (task.status === 'completed') return false;
           const dueDate = new Date(task.dueDate);
           const today = new Date();

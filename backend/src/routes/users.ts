@@ -26,13 +26,13 @@ router.put('/profile', async (req: Request, res: Response) => {
     let paramIndex = 1;
 
     if (username) {
-      updateFields.push(`username = $${paramIndex}`);
+      updateFields.push(`username = ?`);
       updateValues.push(username);
       paramIndex++;
     }
 
     if (email) {
-      updateFields.push(`email = $${paramIndex}`);
+      updateFields.push(`email = ?`);
       updateValues.push(email);
       paramIndex++;
     }
@@ -42,17 +42,22 @@ router.put('/profile', async (req: Request, res: Response) => {
     const query = `
       UPDATE users 
       SET ${updateFields.join(', ')}
-      WHERE id = $${paramIndex}
-      RETURNING id, username, email, created_at
+      WHERE id = ?
     `;
 
-    const result = await pool.query(query, updateValues);
+    const [result] = await pool.execute(query, updateValues);
 
-    if (result.rows.length === 0) {
+    if (result.affectedRows === 0) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    res.json(result.rows[0]);
+    // Get the updated user
+    const [updatedUser] = await pool.execute(
+      'SELECT id, username, email, created_at FROM users WHERE id = ?',
+      [userId]
+    );
+
+    res.json(updatedUser[0]);
   } catch (error) {
     console.error('Error updating user profile:', error);
     res.status(500).json({ message: 'Internal server error' });
@@ -81,16 +86,16 @@ router.put('/password', async (req: Request, res: Response) => {
     }
 
     // Get current user with password hash
-    const userResult = await pool.query(
-      'SELECT password_hash FROM users WHERE id = $1',
+    const [userResult] = await pool.execute(
+      'SELECT password_hash FROM users WHERE id = ?',
       [userId]
     );
 
-    if (userResult.rows.length === 0) {
+    if (userResult.length === 0) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    const user = userResult.rows[0];
+    const user = userResult[0];
 
     // Verify current password
     const isValidPassword = await bcrypt.compare(currentPassword, user.password_hash);
@@ -103,8 +108,8 @@ router.put('/password', async (req: Request, res: Response) => {
     const newPasswordHash = await bcrypt.hash(newPassword, saltRounds);
 
     // Update password
-    await pool.query(
-      'UPDATE users SET password_hash = $1 WHERE id = $2',
+    await pool.execute(
+      'UPDATE users SET password_hash = ? WHERE id = ?',
       [newPasswordHash, userId]
     );
 

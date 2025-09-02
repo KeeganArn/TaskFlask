@@ -7,13 +7,13 @@ const router = Router();
 // GET /tasks - Get all tasks
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const result = await pool.query(`
+    const [rows] = await pool.execute(`
       SELECT t.*, p.name as project_name 
       FROM tasks t 
       LEFT JOIN projects p ON t.project_id = p.id 
       ORDER BY t.updated_at DESC
     `);
-    res.json(result.rows);
+    res.json(rows);
   } catch (error) {
     console.error('Error fetching tasks:', error);
     res.status(500).json({ message: 'Internal server error' });
@@ -24,18 +24,18 @@ router.get('/', async (req: Request, res: Response) => {
 router.get('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const result = await pool.query(`
+    const [rows] = await pool.execute(`
       SELECT t.*, p.name as project_name 
       FROM tasks t 
       LEFT JOIN projects p ON t.project_id = p.id 
-      WHERE t.id = $1
+      WHERE t.id = ?
     `, [id]);
     
-    if (result.rows.length === 0) {
+    if (rows.length === 0) {
       return res.status(404).json({ message: 'Task not found' });
     }
     
-    res.json(result.rows[0]);
+    res.json(rows[0]);
   } catch (error) {
     console.error('Error fetching task:', error);
     res.status(500).json({ message: 'Internal server error' });
@@ -54,12 +54,18 @@ router.post('/', async (req: Request<{}, {}, CreateTaskRequest>, res: Response) 
     // For now, we'll use a default user ID (you can update this when auth is implemented)
     const userId = 1;
     
-    const result = await pool.query(
-      'INSERT INTO tasks (title, description, status, priority, due_date, project_id, user_id) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+    const [result] = await pool.execute(
+      'INSERT INTO tasks (title, description, status, priority, due_date, project_id, user_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
       [title, description, status, priority, dueDate, projectId, userId]
     );
 
-    res.status(201).json(result.rows[0]);
+    // Get the inserted task
+    const [insertedTask] = await pool.execute(
+      'SELECT t.*, p.name as project_name FROM tasks t LEFT JOIN projects p ON t.project_id = p.id WHERE t.id = ?',
+      [result.insertId]
+    );
+
+    res.status(201).json(insertedTask[0]);
   } catch (error) {
     console.error('Error creating task:', error);
     res.status(500).json({ message: 'Internal server error' });
@@ -72,24 +78,30 @@ router.put('/:id', async (req: Request<{ id: string }, {}, UpdateTaskRequest>, r
     const { id } = req.params;
     const { title, description, status, priority, dueDate, projectId } = req.body;
     
-    const result = await pool.query(
+    const [result] = await pool.execute(
       `UPDATE tasks 
-       SET title = COALESCE($1, title), 
-           description = COALESCE($2, description), 
-           status = COALESCE($3, status), 
-           priority = COALESCE($4, priority), 
-           due_date = COALESCE($5, due_date), 
-           project_id = COALESCE($6, project_id), 
+       SET title = COALESCE(?, title), 
+           description = COALESCE(?, description), 
+           status = COALESCE(?, status), 
+           priority = COALESCE(?, priority), 
+           due_date = COALESCE(?, due_date), 
+           project_id = COALESCE(?, project_id), 
            updated_at = CURRENT_TIMESTAMP 
-       WHERE id = $7 RETURNING *`,
+       WHERE id = ?`,
       [title, description, status, priority, dueDate, projectId, id]
     );
 
-    if (result.rows.length === 0) {
+    if (result.affectedRows === 0) {
       return res.status(404).json({ message: 'Task not found' });
     }
 
-    res.json(result.rows[0]);
+    // Get the updated task
+    const [updatedTask] = await pool.execute(
+      'SELECT t.*, p.name as project_name FROM tasks t LEFT JOIN projects p ON t.project_id = p.id WHERE t.id = ?',
+      [id]
+    );
+
+    res.json(updatedTask[0]);
   } catch (error) {
     console.error('Error updating task:', error);
     res.status(500).json({ message: 'Internal server error' });
@@ -101,12 +113,12 @@ router.delete('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     
-    const result = await pool.query(
-      'DELETE FROM tasks WHERE id = $1 RETURNING id',
+    const [result] = await pool.execute(
+      'DELETE FROM tasks WHERE id = ?',
       [id]
     );
 
-    if (result.rows.length === 0) {
+    if (result.affectedRows === 0) {
       return res.status(404).json({ message: 'Task not found' });
     }
 
@@ -120,7 +132,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
 // GET /tasks/overdue - Get overdue tasks
 router.get('/overdue', async (req: Request, res: Response) => {
   try {
-    const result = await pool.query(`
+    const [rows] = await pool.execute(`
       SELECT t.*, p.name as project_name 
       FROM tasks t 
       LEFT JOIN projects p ON t.project_id = p.id 
@@ -128,7 +140,7 @@ router.get('/overdue', async (req: Request, res: Response) => {
       AND t.due_date < CURRENT_DATE
       ORDER BY t.due_date ASC
     `);
-    res.json(result.rows);
+    res.json(rows);
   } catch (error) {
     console.error('Error fetching overdue tasks:', error);
     res.status(500).json({ message: 'Internal server error' });
@@ -150,7 +162,7 @@ router.patch('/bulk', async (req: Request, res: Response) => {
 
     Object.entries(updates).forEach(([key, value]) => {
       if (value !== undefined) {
-        updateFields.push(`${key} = $${paramIndex}`);
+        updateFields.push(`${key} = ?`);
         updateValues.push(value);
         paramIndex++;
       }
@@ -163,15 +175,23 @@ router.patch('/bulk', async (req: Request, res: Response) => {
     updateFields.push('updated_at = CURRENT_TIMESTAMP');
     updateValues.push(...ids);
 
+    const placeholders = ids.map(() => '?').join(',');
     const query = `
       UPDATE tasks 
       SET ${updateFields.join(', ')}
-      WHERE id = ANY($${paramIndex})
-      RETURNING *
+      WHERE id IN (${placeholders})
     `;
 
-    const result = await pool.query(query, updateValues);
-    res.json(result.rows);
+    const [result] = await pool.execute(query, updateValues);
+    
+    // Get the updated tasks
+    const taskPlaceholders = ids.map(() => '?').join(',');
+    const [updatedTasks] = await pool.execute(
+      `SELECT t.*, p.name as project_name FROM tasks t LEFT JOIN projects p ON t.project_id = p.id WHERE t.id IN (${taskPlaceholders})`,
+      ids
+    );
+
+    res.json(updatedTasks);
   } catch (error) {
     console.error('Error bulk updating tasks:', error);
     res.status(500).json({ message: 'Internal server error' });
@@ -187,12 +207,13 @@ router.delete('/bulk', async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Invalid task IDs' });
     }
 
-    const result = await pool.query(
-      'DELETE FROM tasks WHERE id = ANY($1) RETURNING id',
-      [ids]
+    const deletePlaceholders = ids.map(() => '?').join(',');
+    const [result] = await pool.execute(
+      `DELETE FROM tasks WHERE id IN (${deletePlaceholders})`,
+      ids
     );
 
-    res.json({ deletedCount: result.rows.length, deletedIds: result.rows.map(row => row.id) });
+    res.json({ deletedCount: result.affectedRows, deletedIds: ids });
   } catch (error) {
     console.error('Error bulk deleting tasks:', error);
     res.status(500).json({ message: 'Internal server error' });
