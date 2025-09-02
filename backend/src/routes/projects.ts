@@ -1,69 +1,107 @@
 import { Router, Request, Response } from 'express';
 import { Project, CreateProjectRequest, UpdateProjectRequest } from '../types';
-import { projects } from '../data/mockData';
+import pool from '../database/config';
 
 const router = Router();
 
 // GET /projects - Get all projects
-router.get('/', (req: Request, res: Response) => {
-  res.json(projects);
+router.get('/', async (req: Request, res: Response) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM projects ORDER BY created_at DESC'
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching projects:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
 });
 
 // GET /projects/:id - Get project by ID
-router.get('/:id', (req: Request, res: Response) => {
-  const project = projects.find(p => p.id === req.params.id);
-  if (!project) {
-    return res.status(404).json({ message: 'Project not found' });
+router.get('/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      'SELECT * FROM projects WHERE id = $1',
+      [id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error fetching project:', error);
+    res.status(500).json({ message: 'Internal server error' });
   }
-  res.json(project);
 });
 
 // POST /projects - Create new project
-router.post('/', (req: Request<{}, {}, CreateProjectRequest>, res: Response) => {
-  const { name, description } = req.body;
-  
-  if (!name || !description) {
-    return res.status(400).json({ message: 'Missing required fields' });
+router.post('/', async (req: Request<{}, {}, CreateProjectRequest>, res: Response) => {
+  try {
+    const { name, description } = req.body;
+    
+    if (!name || !description) {
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    // For now, we'll use a default user ID (you can update this when auth is implemented)
+    const userId = 1;
+    
+    const result = await pool.query(
+      'INSERT INTO projects (name, description, user_id) VALUES ($1, $2, $3) RETURNING *',
+      [name, description, userId]
+    );
+
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Error creating project:', error);
+    res.status(500).json({ message: 'Internal server error' });
   }
-
-  const newProject: Project = {
-    id: Date.now().toString(),
-    name,
-    description,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  };
-
-  projects.push(newProject);
-  res.status(201).json(newProject);
 });
 
 // PUT /projects/:id - Update project
-router.put('/:id', (req: Request<{ id: string }, {}, UpdateProjectRequest>, res: Response) => {
-  const projectIndex = projects.findIndex(p => p.id === req.params.id);
-  if (projectIndex === -1) {
-    return res.status(404).json({ message: 'Project not found' });
+router.put('/:id', async (req: Request<{ id: string }, {}, UpdateProjectRequest>, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { name, description } = req.body;
+    
+    const result = await pool.query(
+      'UPDATE projects SET name = COALESCE($1, name), description = COALESCE($2, description), updated_at = CURRENT_TIMESTAMP WHERE id = $3 RETURNING *',
+      [name, description, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating project:', error);
+    res.status(500).json({ message: 'Internal server error' });
   }
-
-  const updatedProject = {
-    ...projects[projectIndex],
-    ...req.body,
-    updatedAt: new Date().toISOString()
-  };
-
-  projects[projectIndex] = updatedProject;
-  res.json(updatedProject);
 });
 
 // DELETE /projects/:id - Delete project
-router.delete('/:id', (req: Request, res: Response) => {
-  const projectIndex = projects.findIndex(p => p.id === req.params.id);
-  if (projectIndex === -1) {
-    return res.status(404).json({ message: 'Project not found' });
-  }
+router.delete('/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    
+    const result = await pool.query(
+      'DELETE FROM projects WHERE id = $1 RETURNING id',
+      [id]
+    );
 
-  projects.splice(projectIndex, 1);
-  res.status(204).send();
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+
+    res.status(204).send();
+  } catch (error) {
+    console.error('Error deleting project:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
 });
 
 export default router;

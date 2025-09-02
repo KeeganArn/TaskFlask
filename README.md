@@ -1,16 +1,18 @@
 # Flowbit Task Manager
 
-A full-stack task management application built with React, Node.js, and TypeScript.
+A full-stack task management application built with React, Node.js, TypeScript, and PostgreSQL.
 
-## 🚀 Features
+## Features
 
 - **Dashboard**: Overview with statistics and recent tasks
 - **Projects**: Create, edit, and manage projects
 - **Tasks**: Full CRUD operations with filtering and status tracking
+- **Authentication**: JWT-based user authentication and registration
+- **Database**: PostgreSQL database with proper relationships and constraints
 - **Responsive Design**: Mobile-friendly interface with Tailwind CSS
 - **Real-time Updates**: Instant data synchronization between frontend and backend
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 ### Frontend
 - React 18 with TypeScript
@@ -23,41 +25,77 @@ A full-stack task management application built with React, Node.js, and TypeScri
 ### Backend
 - Node.js with Express
 - TypeScript for type safety
-- In-memory data storage (easily swappable to SQL)
+- PostgreSQL database with connection pooling
+- JWT authentication with bcrypt password hashing
 - RESTful API endpoints
 - CORS and security middleware
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 flowbit-task-manager/
-├── backend/                 # Express.js backend
+├── database/
+│   └── schema.sql              # PostgreSQL database schema
+├── backend/                     # Express.js backend
 │   ├── src/
-│   │   ├── routes/         # API route handlers
-│   │   ├── types/          # TypeScript interfaces
-│   │   ├── data/           # Mock data storage
-│   │   └── index.ts        # Server entry point
+│   │   ├── routes/             # API route handlers
+│   │   ├── types/              # TypeScript interfaces
+│   │   ├── database/           # Database configuration
+│   │   ├── middleware/         # Authentication middleware
+│   │   └── index.ts            # Server entry point
 │   ├── package.json
 │   └── tsconfig.json
-├── frontend/                # React frontend
+├── frontend/                    # React frontend
 │   ├── src/
-│   │   ├── components/     # Reusable components
-│   │   ├── pages/          # Page components
-│   │   ├── services/       # API service layer
-│   │   ├── types/          # TypeScript interfaces
-│   │   └── App.tsx         # Main app component
+│   │   ├── components/         # Reusable components
+│   │   ├── pages/              # Page components
+│   │   ├── services/           # API service layer
+│   │   ├── types/              # TypeScript interfaces
+│   │   └── App.tsx             # Main app component
 │   ├── package.json
 │   ├── vite.config.ts
 │   └── tailwind.config.js
-├── package.json             # Root package.json
+├── package.json                 # Root package.json
 └── README.md
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 - Node.js 18+ 
+- PostgreSQL 12+
 - npm or yarn
+
+### Database Setup
+
+1. **Install PostgreSQL** and start the service
+2. **Create a `.env` file** in the backend directory:
+   ```bash
+   # Database Configuration
+   DB_HOST=localhost
+   DB_PORT=5432
+   DB_NAME=flowbit
+   DB_USER=postgres
+   DB_PASSWORD=your_password_here
+   
+   # JWT Configuration
+   JWT_SECRET=your-super-secret-jwt-key-change-in-production
+   
+   # Server Configuration
+   PORT=5000
+   NODE_ENV=development
+   ```
+
+3. **Setup database**:
+   ```bash
+   cd backend
+   npm run db:setup
+   ```
+
+4. **Create tables** using your `database/schema.sql` file:
+   ```bash
+   psql -U postgres -d flowbit -f database/schema.sql
+   ```
 
 ### Installation
 
@@ -79,23 +117,12 @@ flowbit-task-manager/
 
 This will start both the backend (port 5000) and frontend (port 3000) concurrently.
 
-### Manual Start (Alternative)
+## API Endpoints
 
-If you prefer to run services separately:
-
-**Backend:**
-```bash
-cd backend
-npm run dev
-```
-
-**Frontend:**
-```bash
-cd frontend
-npm run dev
-```
-
-## 🌐 API Endpoints
+### Authentication
+- `POST /api/auth/register` - User registration
+- `POST /api/auth/login` - User login
+- `GET /api/auth/me` - Get current user info (protected)
 
 ### Tasks
 - `GET /api/tasks` - Get all tasks
@@ -111,39 +138,28 @@ npm run dev
 - `PUT /api/projects/:id` - Update project
 - `DELETE /api/projects/:id` - Delete project
 
-### Authentication (Mock)
-- `POST /api/auth/login` - Mock login endpoint
-- `POST /api/auth/register` - Mock registration endpoint
+## Database Schema
 
-## 📊 Data Models
+The application uses PostgreSQL with the following main tables:
 
-### Task
-```typescript
-interface Task {
-  id: string;
-  title: string;
-  description: string;
-  status: 'todo' | 'in-progress' | 'completed';
-  priority: 'low' | 'medium' | 'high';
-  dueDate: string;
-  projectId: string;
-  createdAt: string;
-  updatedAt: string;
-}
-```
+- **users**: User accounts with authentication
+- **projects**: Project definitions linked to users
+- **tasks**: Task items linked to projects and users
 
-### Project
-```typescript
-interface Project {
-  id: string;
-  name: string;
-  description: string;
-  createdAt: string;
-  updatedAt: string;
-}
-```
+Key features:
+- Foreign key constraints for data integrity
+- Proper indexing for performance
+- Timestamp tracking for audit trails
+- User isolation for multi-tenant support
 
-## 🎨 UI Components
+## Authentication
+
+- **JWT tokens** for stateless authentication
+- **bcrypt** for secure password hashing
+- **Protected routes** using middleware
+- **Token expiration** for security
+
+## UI Components
 
 - **Layout**: Responsive sidebar navigation with mobile support
 - **Dashboard**: Statistics cards and recent tasks overview
@@ -151,7 +167,7 @@ interface Project {
 - **Tasks**: Task management with filtering and status tracking
 - **Forms**: Reusable form components with validation
 
-## 🔧 Development
+## Development
 
 ### Available Scripts
 
@@ -164,6 +180,7 @@ interface Project {
 - `npm run dev` - Start development server with hot reload
 - `npm run build` - Build TypeScript to JavaScript
 - `npm start` - Start production server
+- `npm run db:setup` - Setup database connection
 
 **Frontend:**
 - `npm run dev` - Start Vite development server
@@ -176,7 +193,7 @@ interface Project {
 - **Prettier**: Consistent code formatting
 - **TypeScript**: Type safety across the entire application
 
-## 🚀 Deployment
+## Deployment
 
 ### Backend
 ```bash
@@ -192,17 +209,22 @@ npm run build
 # Serve the dist folder with your preferred web server
 ```
 
-## 🔮 Future Enhancements
+### Database
+- Ensure PostgreSQL is running and accessible
+- Set proper environment variables
+- Consider using connection pooling in production
 
-- [ ] Database integration (PostgreSQL/MySQL)
-- [ ] User authentication with JWT
+## Future Enhancements
+
 - [ ] Real-time updates with WebSockets
 - [ ] File attachments for tasks
 - [ ] Team collaboration features
 - [ ] Advanced reporting and analytics
 - [ ] Mobile app (React Native)
+- [ ] Email notifications
+- [ ] Task templates and recurring tasks
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch
@@ -210,10 +232,10 @@ npm run build
 4. Add tests if applicable
 5. Submit a pull request
 
-## 📝 License
+## License
 
 This project is licensed under the MIT License.
 
-## 🆘 Support
+## Support
 
 If you encounter any issues or have questions, please open an issue in the repository.
