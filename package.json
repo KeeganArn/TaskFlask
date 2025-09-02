@@ -14,7 +14,16 @@
   "devDependencies": {
     "concurrently": "^8.2.2"
   },
-  "keywords": ["task-management", "full-stack", "react", "express", "typescript"],
+  "keywords": [
+    "task-management",
+    "full-stack",
+    "react",
+    "express",
+    "typescript"
+  ],
   "author": "",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "all": "^0.0.0"
+  }
 }
