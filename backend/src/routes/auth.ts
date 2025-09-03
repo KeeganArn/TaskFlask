@@ -101,6 +101,12 @@ router.post('/register', async (req: Request<{}, {}, RegisterRequest>, res: Resp
           [organizationId]
         );
         roleId = (memberRoleResult as any).insertId;
+        
+        // Update organization to have this as default role
+        await connection.execute(
+          'UPDATE organizations SET default_role_id = ? WHERE id = ?',
+          [roleId, organizationId]
+        );
       }
     } else if (invitation_token) {
       // User is accepting an email invitation
@@ -171,22 +177,30 @@ router.post('/register', async (req: Request<{}, {}, RegisterRequest>, res: Resp
 
       organizationId = (orgResult as any).insertId;
 
-      // Create owner role for new organization
+      // Create system roles for new organization
+      
+      // 1. Create owner role
       const [ownerRoleResult] = await connection.execute(
         `INSERT INTO roles (name, display_name, description, permissions, is_system_role, organization_id)
          VALUES ('owner', 'Organization Owner', 'Full control over the organization', 
-                 '["*"]', true, ?)`,
+                 '["*", "users.view", "users.manage", "roles.view", "roles.manage", "projects.*", "tasks.*", "organization.manage"]', true, ?)`,
         [organizationId]
       );
-
       roleId = (ownerRoleResult as any).insertId;
 
-      // Create default member role for future invites
-      await connection.execute(
+      // 2. Create member role  
+      const [memberRoleResult] = await connection.execute(
         `INSERT INTO roles (name, display_name, description, permissions, is_system_role, organization_id)
          VALUES ('member', 'Team Member', 'Default role for team members', 
                  '["projects.view", "tasks.view", "tasks.create", "tasks.edit"]', true, ?)`,
         [organizationId]
+      );
+      const memberRoleId = (memberRoleResult as any).insertId;
+      
+      // 3. Set member role as default for new joiners
+      await connection.execute(
+        'UPDATE organizations SET default_role_id = ? WHERE id = ?',
+        [memberRoleId, organizationId]
       );
 
     } else {
@@ -201,6 +215,12 @@ router.post('/register', async (req: Request<{}, {}, RegisterRequest>, res: Resp
       `INSERT INTO organization_members (organization_id, user_id, role_id, joined_at, status) 
        VALUES (?, ?, ?, CURRENT_TIMESTAMP, 'active')`,
       [organizationId, userId, roleId]
+    );
+
+    // Update user's organization_id field
+    await connection.execute(
+      `UPDATE users SET organization_id = ? WHERE id = ?`,
+      [organizationId, userId]
     );
 
     await connection.commit();
@@ -330,9 +350,9 @@ router.post('/login', async (req: Request<{}, {}, LoginRequest>, res: Response) 
       return res.status(401).json({ message: 'Invalid email or password' });
     }
 
-    // Update last login
+    // Update last login and set status to online
     await pool.execute(
-      'UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?',
+      'UPDATE users SET last_login = CURRENT_TIMESTAMP, user_status = "online", last_seen = CURRENT_TIMESTAMP WHERE id = ?',
       [user.id]
     );
 
@@ -566,6 +586,54 @@ router.get('/me', authenticate, async (req: AuthenticatedRequest, res: Response)
 
   } catch (error) {
     console.error('Get current user error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+/**
+ * PUT /auth/status - Update user status
+ */
+router.put('/status', authenticate, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { user_status, status_message } = req.body;
+    
+    // Validate status
+    const validStatuses = ['online', 'busy', 'dnd', 'offline'];
+    if (user_status && !validStatuses.includes(user_status)) {
+      return res.status(400).json({ message: 'Invalid user status' });
+    }
+
+    const connection = await pool.getConnection();
+    
+    try {
+      await connection.execute(
+        `UPDATE users 
+         SET user_status = COALESCE(?, user_status),
+             status_message = COALESCE(?, status_message),
+             last_seen = CURRENT_TIMESTAMP,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = ?`,
+        [user_status, status_message, req.user!.id]
+      );
+
+      // Get updated user data
+      const [rows] = await connection.execute(
+        'SELECT id, username, email, first_name, last_name, user_status, status_message, last_seen FROM users WHERE id = ?',
+        [req.user!.id]
+      );
+
+      const updatedUser = (rows as any[])[0];
+      res.json({ 
+        message: 'Status updated successfully',
+        user: updatedUser
+      });
+
+    } finally {
+      connection.release();
+    }
+    
+  } catch (error) {
+    console.error('Error updating user status:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 });

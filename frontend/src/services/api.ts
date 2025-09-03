@@ -95,7 +95,10 @@ export const authApi = {
   getStoredPermissions: () => {
     const permissions = localStorage.getItem('permissions');
     return permissions ? JSON.parse(permissions) : [];
-  }
+  },
+
+  updateUserStatus: (status: string) =>
+    api.put('/auth/status', { user_status: status }).then(res => res.data)
 };
 
 // Organizations API

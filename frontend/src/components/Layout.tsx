@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, 
@@ -29,6 +29,19 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (userMenuOpen && !target.closest('[data-dropdown="user-menu"]')) {
+        setUserMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [userMenuOpen]);
 
   // Permission checks
   const canViewUsers = usePermission('users.view');
@@ -97,7 +110,19 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <div className="flex-1 h-0 pt-5 pb-4 overflow-y-auto">
             <div className="flex-shrink-0 flex items-center px-4">
               <div className="flex items-center">
-                <div className="h-8 w-8 bg-primary-600 rounded-lg flex items-center justify-center">
+                {/* Logo */}
+                <img 
+                  src="/logo.png" 
+                  alt="Flowbit" 
+                  className="h-10 w-auto"
+                  onError={(e) => {
+                    // Fallback to icon if logo doesn't exist
+                    (e.target as HTMLImageElement).style.display = 'none';
+                    const fallback = (e.target as HTMLImageElement).nextElementSibling as HTMLElement;
+                    if (fallback) fallback.style.display = 'flex';
+                  }}
+                />
+                <div className="h-8 w-8 bg-primary-600 rounded-lg items-center justify-center" style={{ display: 'none' }}>
                   <Building2 className="h-5 w-5 text-white" />
                 </div>
                 <div className="ml-3">
@@ -140,7 +165,19 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
               <div className="flex items-center flex-shrink-0 px-4">
                 <div className="flex items-center">
-                  <div className="h-8 w-8 bg-primary-600 rounded-lg flex items-center justify-center">
+                  {/* Logo */}
+                  <img 
+                    src="/logo.png" 
+                    alt="Flowbit" 
+                    className="h-10 w-auto"
+                    onError={(e) => {
+                      // Fallback to icon if logo doesn't exist
+                      (e.target as HTMLImageElement).style.display = 'none';
+                      const fallback = (e.target as HTMLImageElement).nextElementSibling as HTMLElement;
+                      if (fallback) fallback.style.display = 'flex';
+                    }}
+                  />
+                  <div className="h-8 w-8 bg-primary-600 rounded-lg items-center justify-center" style={{ display: 'none' }}>
                     <Building2 className="h-5 w-5 text-white" />
                   </div>
                   <div className="ml-3">
@@ -212,16 +249,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               </button>
 
               {/* Profile dropdown */}
-              <div className="ml-3 relative z-50">
+              <div className="ml-3 relative z-50" data-dropdown="user-menu">
                 <div>
                   <button
-                    type="button"
                     className="max-w-xs bg-white flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setUserMenuOpen(!userMenuOpen);
-                    }}
+                    onClick={() => setUserMenuOpen(!userMenuOpen)}
                   >
                     <div className="h-8 w-8 rounded-full bg-primary-600 flex items-center justify-center text-white text-sm font-medium">
                       {user?.avatar_url ? (
@@ -232,7 +264,16 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     </div>
                     <div className="hidden md:block ml-3 text-left">
                       <p className="text-sm font-medium text-gray-700">{userDisplayName}</p>
-                      <p className="text-xs text-gray-500">{user?.email}</p>
+                      <div className="flex items-center space-x-2">
+                        <p className="text-xs text-gray-500">{user?.email}</p>
+                        {user?.user_status && (
+                          <div className={`h-2 w-2 rounded-full ${
+                            user.user_status === 'online' ? 'bg-green-500' :
+                            user.user_status === 'busy' ? 'bg-yellow-500' :
+                            user.user_status === 'dnd' ? 'bg-red-500' : 'bg-gray-400'
+                          }`} title={user.user_status} />
+                        )}
+                      </div>
                     </div>
                     <ChevronDown className="hidden md:block ml-2 h-4 w-4 text-gray-400" />
                   </button>
@@ -246,38 +287,29 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     </div>
                     
                     <button
-                      type="button"
-                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
+                      onClick={() => {
                         setUserMenuOpen(false);
                         navigate('/profile');
                       }}
+                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left"
                     >
                       <User className="mr-3 h-4 w-4" />
                       Your Profile
                     </button>
                     
                     <button
-                      type="button"
-                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
+                      onClick={() => {
                         setUserMenuOpen(false);
                         navigate('/settings');
                       }}
+                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left"
                     >
                       <Settings className="mr-3 h-4 w-4" />
                       Settings
                     </button>
                     
                     <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
+                      onClick={() => {
                         setUserMenuOpen(false);
                         handleLogout();
                       }}
@@ -303,13 +335,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </main>
       </div>
 
-      {/* Click outside to close user menu */}
-      {userMenuOpen && (
-        <div
-          className="fixed inset-0 z-40"
-          onClick={() => setUserMenuOpen(false)}
-        />
-      )}
+
     </div>
   );
 };

@@ -39,29 +39,47 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const storedOrganization = authApi.getStoredOrganization();
         const storedPermissions = authApi.getStoredPermissions();
 
-        if (storedToken && storedUser && storedOrganization) {
+        if (storedToken && storedUser) {
           setToken(storedToken);
           setUser(storedUser);
           setOrganization(storedOrganization);
           setPermissions(storedPermissions);
           
-          // Verify token is still valid by fetching current user
+          // Try to verify token, but don't logout if it fails (might be network issue)
           authApi.getCurrentUser()
             .then((response) => {
-              // Update with fresh data
-              setUser(response.user);
-              setOrganization(response.organization);
-              setPermissions(response.permissions);
+              // Update with fresh data if available
+              if (response.user) {
+                setUser(response.user);
+                localStorage.setItem('user', JSON.stringify(response.user));
+              }
+              if (response.organization) {
+                setOrganization(response.organization);
+                localStorage.setItem('organization', JSON.stringify(response.organization));
+              }
+              if (response.permissions) {
+                setPermissions(response.permissions);
+                localStorage.setItem('permissions', JSON.stringify(response.permissions));
+              }
               
-              // Update localStorage with fresh data
-              localStorage.setItem('user', JSON.stringify(response.user));
-              localStorage.setItem('organization', JSON.stringify(response.organization));
-              localStorage.setItem('permissions', JSON.stringify(response.permissions));
+              // Set user status to online when they load the app
+              if (response.user && response.user.user_status !== 'online') {
+                authApi.updateUserStatus('online').catch((error) => {
+                  console.warn('Failed to update user status to online:', error);
+                });
+              }
             })
             .catch((error) => {
-              console.error('Token validation failed:', error);
-              // Token is invalid, clear auth state
-              logout();
+              console.warn('Token validation failed, keeping local session:', error);
+              // Don't logout immediately - might be network issue
+              // User can still use the app with cached data
+              
+              // Still try to set status to online for stored user
+              if (storedUser && storedUser.user_status !== 'online') {
+                authApi.updateUserStatus('online').catch((error) => {
+                  console.warn('Failed to update user status to online:', error);
+                });
+              }
             });
         }
       } catch (error) {

@@ -238,6 +238,8 @@ export const requireOrganizationAdmin = (req: AuthenticatedRequest, res: Respons
 
   const isAdmin = hasPermission(req.user.permissions, 'org.edit') ||
                   hasPermission(req.user.permissions, 'users.invite') ||
+                  hasPermission(req.user.permissions, 'users.manage') ||
+                  req.user.role.name === 'owner' ||
                   req.user.role.name === 'org_owner' ||
                   req.user.role.name === 'org_admin';
 

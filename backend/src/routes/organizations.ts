@@ -102,7 +102,7 @@ router.put('/current',
 /**
  * GET /organizations/members - Get organization members
  */
-router.get('/members', authenticate, requirePermission('users.view'), async (req: AuthenticatedRequest, res: Response) => {
+router.get('/members', authenticate, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { status = 'active', role_name, search } = req.query;
     
@@ -110,6 +110,7 @@ router.get('/members', authenticate, requirePermission('users.view'), async (req
       SELECT 
         om.*,
         u.username, u.email, u.first_name, u.last_name, u.avatar_url, u.last_login, u.is_active,
+        u.user_status, u.status_message, u.last_seen, u.organization_id,
         r.name as role_name, r.display_name as role_display_name, r.permissions,
         inviter.username as invited_by_username
       FROM organization_members om
@@ -286,8 +287,46 @@ router.delete('/members/:userId',
 /**
  * GET /organizations/roles - Get organization roles
  */
-router.get('/roles', authenticate, requirePermission('roles.view'), async (req: AuthenticatedRequest, res: Response) => {
+router.get('/roles', authenticate, async (req: AuthenticatedRequest, res: Response) => {
   try {
+    // First check if organization has default roles, create them if missing
+    const [existingRoles] = await pool.execute(
+      'SELECT COUNT(*) as role_count FROM roles WHERE organization_id = ?',
+      [req.user!.organization_id]
+    );
+    
+    const roleCount = (existingRoles as any[])[0].role_count;
+    
+    // If no roles exist, create default owner and member roles
+    if (roleCount === 0) {
+      console.log(`Creating default roles for organization ${req.user!.organization_id}`);
+      
+      // Create owner role
+      await pool.execute(
+        `INSERT INTO roles (name, display_name, description, permissions, is_system_role, organization_id)
+         VALUES ('owner', 'Organization Owner', 'Full control over the organization', 
+                 '["*", "users.view", "users.manage", "roles.view", "roles.manage", "projects.*", "tasks.*", "organization.manage"]', true, ?)`,
+        [req.user!.organization_id]
+      );
+      
+      // Create member role
+      const [memberRoleResult] = await pool.execute(
+        `INSERT INTO roles (name, display_name, description, permissions, is_system_role, organization_id)
+         VALUES ('member', 'Team Member', 'Default role for team members', 
+                 '["projects.view", "tasks.view", "tasks.create", "tasks.edit"]', true, ?)`,
+        [req.user!.organization_id]
+      );
+      
+      const memberRoleId = (memberRoleResult as any).insertId;
+      
+      // Set member role as default
+      await pool.execute(
+        'UPDATE organizations SET default_role_id = ? WHERE id = ?',
+        [memberRoleId, req.user!.organization_id]
+      );
+    }
+
+    // Now fetch all roles
     const [rows] = await pool.execute(`
       SELECT r.*, COUNT(om.id) as member_count
       FROM roles r

@@ -123,8 +123,22 @@ const Register: React.FC = () => {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div>
-          <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-primary-100">
-            <UserPlus className="h-6 w-6 text-primary-600" />
+          <div className="flex flex-col items-center">
+            {/* Logo */}
+            <img 
+              src="/logo.png" 
+              alt="Flowbit" 
+              className="h-32 w-auto mb-6"
+              onError={(e) => {
+                // Fallback to icon if logo doesn't exist
+                (e.target as HTMLImageElement).style.display = 'none';
+                const fallback = (e.target as HTMLImageElement).nextElementSibling as HTMLElement;
+                if (fallback) fallback.style.display = 'flex';
+              }}
+            />
+            <div className="mx-auto h-12 w-12 items-center justify-center rounded-full bg-primary-100" style={{ display: 'none' }}>
+              <UserPlus className="h-6 w-6 text-primary-600" />
+            </div>
           </div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
             Create your account

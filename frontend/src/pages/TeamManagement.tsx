@@ -10,73 +10,15 @@ import {
   Plus,
   X,
   Check,
-  AlertCircle
+  AlertCircle,
+  Circle,
+  Minus
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { organizationsApi, authApi } from '../services/api';
 import { OrganizationMember, Role, CreateRoleRequest } from '../types';
 
-// Mock data for now - in real app this would come from API
-const mockMembers: OrganizationMember[] = [
-  {
-    id: 1,
-    organization_id: 1,
-    user_id: 1,
-    role_id: 1,
-    status: 'active',
-    joined_at: new Date().toISOString(),
-    user: {
-      id: 1,
-      email: 'owner@company.com',
-      username: 'owner',
-      first_name: 'John',
-      last_name: 'Doe',
-      created_at: new Date().toISOString()
-    },
-    role: {
-      id: 1,
-      name: 'owner',
-      display_name: 'Organization Owner',
-      description: 'Full control over the organization',
-      permissions: ['*'],
-      is_system_role: true,
-      organization_id: 1,
-      member_count: 1
-    }
-  }
-];
 
-const mockRoles: Role[] = [
-  {
-    id: 1,
-    name: 'owner',
-    display_name: 'Organization Owner',
-    description: 'Full control over the organization',
-    permissions: ['*'],
-    is_system_role: true,
-    organization_id: 1,
-    member_count: 1
-  },
-  {
-    id: 2,
-    name: 'admin',
-    display_name: 'Administrator',
-    description: 'Can manage projects and team members',
-    permissions: ['projects.*', 'tasks.*', 'users.view', 'users.invite'],
-    is_system_role: false,
-    organization_id: 1,
-    member_count: 0
-  },
-  {
-    id: 3,
-    name: 'member',
-    display_name: 'Team Member',
-    description: 'Can view and work on assigned projects',
-    permissions: ['projects.view', 'tasks.view', 'tasks.edit'],
-    is_system_role: false,
-    organization_id: 1,
-    member_count: 0
-  }
-];
 
 const availablePermissions = [
   { id: 'projects.*', label: 'All Project Permissions', category: 'Projects' },
@@ -100,16 +42,78 @@ const availablePermissions = [
 
 const TeamManagement: React.FC = () => {
   const { user, organization } = useAuth();
-  const [members, setMembers] = useState<OrganizationMember[]>(mockMembers);
-  const [roles, setRoles] = useState<Role[]>(mockRoles);
+  const [members, setMembers] = useState<OrganizationMember[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'members' | 'roles'>('members');
   const [showCreateRoleModal, setShowCreateRoleModal] = useState(false);
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [currentUserStatus, setCurrentUserStatus] = useState<'online' | 'busy' | 'dnd' | 'offline'>('online');
   const [newRole, setNewRole] = useState<CreateRoleRequest>({
     name: '',
     display_name: '',
     description: '',
     permissions: []
   });
+
+  // Status utilities
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'online': return 'text-green-500';
+      case 'busy': return 'text-yellow-500';
+      case 'dnd': return 'text-red-500';
+      case 'offline': return 'text-gray-400';
+      default: return 'text-gray-400';
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'online': return 'Online';
+      case 'busy': return 'Busy';
+      case 'dnd': return 'Do Not Disturb';
+      case 'offline': return 'Offline';
+      default: return 'Unknown';
+    }
+  };
+
+  // Fetch real organization members and roles
+  useEffect(() => {
+    const fetchTeamData = async () => {
+      if (!organization) return;
+      
+      try {
+        setLoading(true);
+        console.log('Fetching team data for organization:', organization.id);
+        
+        const [membersData, rolesData] = await Promise.all([
+          organizationsApi.getMembers().catch((error) => {
+            console.error('Error fetching members:', error);
+            return [];
+          }),
+          organizationsApi.getRoles().catch((error) => {
+            console.error('Error fetching roles:', error);
+            return [];
+          })
+        ]);
+        
+        console.log('Members data received:', membersData);
+        console.log('Roles data received:', rolesData);
+        
+        setMembers(membersData || []);
+        setRoles(rolesData || []);
+        
+      } catch (error) {
+        console.error('Error fetching team data:', error);
+        setMembers([]);
+        setRoles([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTeamData();
+  }, [organization]);
 
   const isOwner = user && members.find(m => m.user_id === user.id)?.role?.name === 'owner';
 
@@ -121,21 +125,23 @@ const TeamManagement: React.FC = () => {
       return;
     }
 
-    // In real app, this would call the API
-    const roleData: Role = {
-      id: roles.length + 1,
-      name: newRole.name,
-      display_name: newRole.display_name,
-      description: newRole.description,
-      permissions: newRole.permissions,
-      is_system_role: false,
-      organization_id: organization?.id || 1,
-      member_count: 0
-    };
+    try {
+      // Create role via API
+      const createdRole = await organizationsApi.createRole({
+        name: newRole.name,
+        display_name: newRole.display_name,
+        description: newRole.description,
+        permissions: newRole.permissions
+      });
 
-    setRoles([...roles, roleData]);
-    setShowCreateRoleModal(false);
-    setNewRole({ name: '', display_name: '', description: '', permissions: [] });
+      // Add to local state
+      setRoles([...roles, createdRole]);
+      setShowCreateRoleModal(false);
+      setNewRole({ name: '', display_name: '', description: '', permissions: [] });
+    } catch (error) {
+      console.error('Error creating role:', error);
+      alert('Failed to create role. Please try again.');
+    }
   };
 
   const handlePermissionToggle = (permission: string) => {
@@ -215,8 +221,18 @@ const TeamManagement: React.FC = () => {
               <li key={member.id} className="p-4 hover:bg-gray-50">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4">
-                    <div className="h-10 w-10 rounded-full bg-primary-600 flex items-center justify-center text-white font-medium">
-                      {getInitials(member)}
+                    <div className="relative">
+                      <div className="h-10 w-10 rounded-full bg-primary-600 flex items-center justify-center text-white font-medium">
+                        {getInitials(member)}
+                      </div>
+                      {/* Status indicator */}
+                      <div className={`absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-2 border-white flex items-center justify-center ${
+                        member.user?.user_status === 'online' ? 'bg-green-500' :
+                        member.user?.user_status === 'busy' ? 'bg-yellow-500' :
+                        member.user?.user_status === 'dnd' ? 'bg-red-500' : 'bg-gray-400'
+                      }`}>
+                        <Circle className="h-2 w-2 fill-current text-white" />
+                      </div>
                     </div>
                     <div>
                       <h3 className="text-sm font-medium text-gray-900 flex items-center">
@@ -224,14 +240,29 @@ const TeamManagement: React.FC = () => {
                         {member.role?.name === 'owner' && (
                           <Crown className="h-4 w-4 text-yellow-500 ml-2" title="Organization Owner" />
                         )}
+                        {member.user_id === user?.id && (
+                          <button
+                            onClick={() => setShowStatusModal(true)}
+                            className="ml-2 text-xs text-gray-500 hover:text-gray-700"
+                          >
+                            (You)
+                          </button>
+                        )}
                       </h3>
                       <p className="text-sm text-gray-500">{member.user?.email}</p>
                       <div className="flex items-center space-x-2 mt-1">
-                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
-                          {member.status}
+                        <span className={`flex items-center text-xs ${getStatusColor(member.user?.user_status || 'offline')}`}>
+                          <Circle className="h-2 w-2 fill-current mr-1" />
+                          {getStatusText(member.user?.user_status || 'offline')}
                         </span>
                         <span className="text-xs text-gray-500">•</span>
                         <span className="text-xs text-gray-500">{member.role?.display_name}</span>
+                        {member.user?.status_message && (
+                          <>
+                            <span className="text-xs text-gray-500">•</span>
+                            <span className="text-xs text-gray-400 italic">{member.user.status_message}</span>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -240,9 +271,23 @@ const TeamManagement: React.FC = () => {
                     <div className="flex items-center space-x-2">
                       <select
                         value={member.role_id}
-                        onChange={(e) => {
-                          // Handle role change
-                          console.log('Change role to:', e.target.value);
+                        onChange={async (e) => {
+                          try {
+                            const newRoleId = parseInt(e.target.value);
+                            await organizationsApi.updateMemberRole(member.user_id, newRoleId);
+                            
+                            // Update local state
+                            setMembers(prevMembers => 
+                              prevMembers.map(m => 
+                                m.user_id === member.user_id 
+                                  ? { ...m, role_id: newRoleId, role: roles.find(r => r.id === newRoleId) || m.role }
+                                  : m
+                              )
+                            );
+                          } catch (error) {
+                            console.error('Failed to update member role:', error);
+                            alert('Failed to update member role. Please try again.');
+                          }
                         }}
                         className="text-sm border-gray-300 rounded-md"
                       >
@@ -407,6 +452,67 @@ const TeamManagement: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Status Change Modal */}
+      {showStatusModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-medium text-gray-900">Update Your Status</h3>
+              <button
+                onClick={() => setShowStatusModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <p className="text-sm text-gray-600 mb-4">
+              Choose your availability status. Your status will automatically change to offline when you're inactive.
+            </p>
+            
+            <div className="space-y-3">
+              {[
+                { value: 'online', label: 'Online', color: 'bg-green-500', description: 'Available and ready to work' },
+                { value: 'busy', label: 'Busy', color: 'bg-yellow-500', description: 'Working but may be slow to respond' },
+                { value: 'dnd', label: 'Do Not Disturb', color: 'bg-red-500', description: 'Please do not interrupt' }
+              ].map((status) => (
+                <button
+                  key={status.value}
+                  onClick={async () => {
+                    try {
+                      await authApi.updateUserStatus(status.value);
+                      setCurrentUserStatus(status.value as any);
+                      setShowStatusModal(false);
+                      // Refresh team data to see updated status
+                      window.location.reload();
+                    } catch (error) {
+                      console.error('Failed to update status:', error);
+                      alert('Failed to update status. Please try again.');
+                    }
+                  }}
+                  className={`w-full flex items-center p-3 rounded-lg border-2 transition-colors ${
+                    currentUserStatus === status.value 
+                      ? 'border-primary-500 bg-primary-50' 
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className={`h-4 w-4 rounded-full ${status.color} mr-3 flex items-center justify-center`}>
+                    <Circle className="h-2 w-2 fill-current text-white" />
+                  </div>
+                  <div className="text-left">
+                    <div className="font-medium text-gray-900">{status.label}</div>
+                    <div className="text-sm text-gray-500">{status.description}</div>
+                  </div>
+                  {currentUserStatus === status.value && (
+                    <Check className="h-5 w-5 text-primary-600 ml-auto" />
+                  )}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}

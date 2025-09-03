@@ -44,6 +44,10 @@ export interface User {
   phone?: string;
   timezone: string;
   language: string;
+  organization_id?: number;
+  user_status?: 'online' | 'busy' | 'dnd' | 'offline';
+  status_message?: string;
+  last_seen?: string;
   is_active: boolean;
   email_verified: boolean;
   last_login?: string;
