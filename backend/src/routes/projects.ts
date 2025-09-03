@@ -1,14 +1,21 @@
 import { Router, Request, Response } from 'express';
 import { Project, CreateProjectRequest, UpdateProjectRequest } from '../types';
 import pool from '../database/config';
+import { authenticateToken } from '../middleware/auth';
 
 const router = Router();
 
-// GET /projects - Get all projects
-router.get('/', async (req: Request, res: Response) => {
+// GET /projects - Get all projects for authenticated user
+router.get('/', authenticateToken, async (req: Request & { user?: { userId: number; email: string } }, res: Response) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({ message: 'User not authenticated' });
+    }
+
+    const userId = req.user.userId;
     const [rows] = await pool.execute(
-      'SELECT * FROM projects ORDER BY created_at DESC'
+      'SELECT * FROM projects WHERE user_id = ? ORDER BY created_at DESC',
+      [userId]
     );
     res.json(rows);
   } catch (error) {
@@ -38,21 +45,31 @@ router.get('/:id', async (req: Request, res: Response) => {
 });
 
 // POST /projects - Create new project
-router.post('/', async (req: Request<{}, {}, CreateProjectRequest>, res: Response) => {
+router.post('/', authenticateToken, async (req: Request<{}, {}, CreateProjectRequest> & { user?: { userId: number; email: string } }, res: Response) => {
   try {
+    console.log('Projects POST - Request body:', req.body);
+    console.log('Projects POST - User from request:', req.user);
+    
     const { name, description } = req.body;
     
     if (!name || !description) {
       return res.status(400).json({ message: 'Missing required fields' });
     }
 
-    // For now, we'll use a default user ID (you can update this when auth is implemented)
-    const userId = 1;
+    if (!req.user) {
+      console.log('Projects POST - No user in request');
+      return res.status(401).json({ message: 'User not authenticated' });
+    }
+
+    const userId = req.user.userId;
+    console.log('Projects POST - Using user ID:', userId);
     
     const [result] = await pool.execute(
       'INSERT INTO projects (name, description, user_id) VALUES (?, ?, ?)',
       [name, description, userId]
     );
+
+    console.log('Projects POST - Insert result:', result);
 
     // Get the inserted project
     const [insertedProject] = await pool.execute(
@@ -60,6 +77,7 @@ router.post('/', async (req: Request<{}, {}, CreateProjectRequest>, res: Respons
       [result.insertId]
     );
 
+    console.log('Projects POST - Inserted project:', insertedProject[0]);
     res.status(201).json(insertedProject[0]);
   } catch (error) {
     console.error('Error creating project:', error);

@@ -1,19 +1,38 @@
 import { Router, Request, Response } from 'express';
 import { Task, CreateTaskRequest, UpdateTaskRequest } from '../types';
 import pool from '../database/config';
+import { authenticateToken } from '../middleware/auth';
 
 const router = Router();
 
-// GET /tasks - Get all tasks
-router.get('/', async (req: Request, res: Response) => {
+// GET /tasks - Get all tasks for authenticated user
+router.get('/', authenticateToken, async (req: Request & { user?: { userId: number; email: string } }, res: Response) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({ message: 'User not authenticated' });
+    }
+
+    const userId = req.user.userId;
     const [rows] = await pool.execute(`
       SELECT t.*, p.name as project_name 
       FROM tasks t 
       LEFT JOIN projects p ON t.project_id = p.id 
+      WHERE t.user_id = ?
       ORDER BY t.updated_at DESC
-    `);
-    res.json(rows);
+    `, [userId]);
+    
+    // Transform snake_case to camelCase for frontend
+    const transformedRows = (rows as any[]).map(row => ({
+      ...row,
+      dueDate: row.due_date,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      projectId: row.project_id,
+      userId: row.user_id,
+      projectName: row.project_name
+    }));
+    
+    res.json(transformedRows);
   } catch (error) {
     console.error('Error fetching tasks:', error);
     res.status(500).json({ message: 'Internal server error' });
@@ -31,11 +50,23 @@ router.get('/:id', async (req: Request, res: Response) => {
       WHERE t.id = ?
     `, [id]);
     
-    if (rows.length === 0) {
+    if ((rows as any[]).length === 0) {
       return res.status(404).json({ message: 'Task not found' });
     }
     
-    res.json(rows[0]);
+    // Transform snake_case to camelCase for frontend
+    const task = (rows as any[])[0];
+    const transformedTask = {
+      ...task,
+      dueDate: task.due_date,
+      createdAt: task.created_at,
+      updatedAt: task.updated_at,
+      projectId: task.project_id,
+      userId: task.user_id,
+      projectName: task.project_name
+    };
+    
+    res.json(transformedTask);
   } catch (error) {
     console.error('Error fetching task:', error);
     res.status(500).json({ message: 'Internal server error' });
@@ -43,7 +74,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 });
 
 // POST /tasks - Create new task
-router.post('/', async (req: Request<{}, {}, CreateTaskRequest>, res: Response) => {
+router.post('/', authenticateToken, async (req: Request<{}, {}, CreateTaskRequest> & { user?: { userId: number; email: string } }, res: Response) => {
   try {
     const { title, description, status, priority, dueDate, projectId } = req.body;
     
@@ -51,8 +82,11 @@ router.post('/', async (req: Request<{}, {}, CreateTaskRequest>, res: Response) 
       return res.status(400).json({ message: 'Missing required fields' });
     }
 
-    // For now, we'll use a default user ID (you can update this when auth is implemented)
-    const userId = 1;
+    if (!req.user) {
+      return res.status(401).json({ message: 'User not authenticated' });
+    }
+
+    const userId = req.user.userId;
     
     const [result] = await pool.execute(
       'INSERT INTO tasks (title, description, status, priority, due_date, project_id, user_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
@@ -62,10 +96,22 @@ router.post('/', async (req: Request<{}, {}, CreateTaskRequest>, res: Response) 
     // Get the inserted task
     const [insertedTask] = await pool.execute(
       'SELECT t.*, p.name as project_name FROM tasks t LEFT JOIN projects p ON t.project_id = p.id WHERE t.id = ?',
-      [result.insertId]
+      [(result as any).insertId]
     );
 
-    res.status(201).json(insertedTask[0]);
+    // Transform snake_case to camelCase for frontend
+    const task = (insertedTask as any[])[0];
+    const transformedTask = {
+      ...task,
+      dueDate: task.due_date,
+      createdAt: task.created_at,
+      updatedAt: task.updated_at,
+      projectId: task.project_id,
+      userId: task.user_id,
+      projectName: task.project_name
+    };
+
+    res.status(201).json(transformedTask);
   } catch (error) {
     console.error('Error creating task:', error);
     res.status(500).json({ message: 'Internal server error' });
@@ -91,7 +137,7 @@ router.put('/:id', async (req: Request<{ id: string }, {}, UpdateTaskRequest>, r
       [title, description, status, priority, dueDate, projectId, id]
     );
 
-    if (result.affectedRows === 0) {
+    if ((result as any).affectedRows === 0) {
       return res.status(404).json({ message: 'Task not found' });
     }
 
@@ -101,7 +147,19 @@ router.put('/:id', async (req: Request<{ id: string }, {}, UpdateTaskRequest>, r
       [id]
     );
 
-    res.json(updatedTask[0]);
+    // Transform snake_case to camelCase for frontend
+    const task = (updatedTask as any[])[0];
+    const transformedTask = {
+      ...task,
+      dueDate: task.due_date,
+      createdAt: task.created_at,
+      updatedAt: task.updated_at,
+      projectId: task.project_id,
+      userId: task.user_id,
+      projectName: task.project_name
+    };
+
+    res.json(transformedTask);
   } catch (error) {
     console.error('Error updating task:', error);
     res.status(500).json({ message: 'Internal server error' });
@@ -118,7 +176,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
       [id]
     );
 
-    if (result.affectedRows === 0) {
+    if ((result as any).affectedRows === 0) {
       return res.status(404).json({ message: 'Task not found' });
     }
 
@@ -140,7 +198,19 @@ router.get('/overdue', async (req: Request, res: Response) => {
       AND t.due_date < CURRENT_DATE
       ORDER BY t.due_date ASC
     `);
-    res.json(rows);
+    
+    // Transform snake_case to camelCase for frontend
+    const transformedRows = (rows as any[]).map(row => ({
+      ...row,
+      dueDate: row.due_date,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      projectId: row.project_id,
+      userId: row.user_id,
+      projectName: row.project_name
+    }));
+    
+    res.json(transformedRows);
   } catch (error) {
     console.error('Error fetching overdue tasks:', error);
     res.status(500).json({ message: 'Internal server error' });
@@ -191,7 +261,18 @@ router.patch('/bulk', async (req: Request, res: Response) => {
       ids
     );
 
-    res.json(updatedTasks);
+    // Transform snake_case to camelCase for frontend
+    const transformedTasks = (updatedTasks as any[]).map(row => ({
+      ...row,
+      dueDate: row.due_date,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      projectId: row.project_id,
+      userId: row.user_id,
+      projectName: row.project_name
+    }));
+
+    res.json(transformedTasks);
   } catch (error) {
     console.error('Error bulk updating tasks:', error);
     res.status(500).json({ message: 'Internal server error' });
@@ -213,7 +294,7 @@ router.delete('/bulk', async (req: Request, res: Response) => {
       ids
     );
 
-    res.json({ deletedCount: result.affectedRows, deletedIds: ids });
+    res.json({ deletedCount: (result as any).affectedRows, deletedIds: ids });
   } catch (error) {
     console.error('Error bulk deleting tasks:', error);
     res.status(500).json({ message: 'Internal server error' });

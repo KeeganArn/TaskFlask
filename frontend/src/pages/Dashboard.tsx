@@ -9,25 +9,28 @@ const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+    useEffect(() => {
     const fetchData = async () => {
-             try {
-         const [tasksData, projectsData] = await Promise.all([
-           tasksApi.getAll(),
-           projectsApi.getAll()
-         ]);
-         
-         console.log('Tasks API response:', tasksData);
-         console.log('Projects API response:', projectsData);
-         
-         setTasks(tasksData);
-         setProjects(projectsData);
-       } catch (error) {
-         console.error('Error fetching dashboard data:', error);
-         setError('Failed to load dashboard data');
-       } finally {
-         setLoading(false);
-       }
+      try {
+        const [tasksData, projectsData] = await Promise.all([
+          tasksApi.getAll().catch(() => []),
+          projectsApi.getAll().catch(() => [])
+        ]);
+        
+        console.log('Tasks API response:', tasksData);
+        console.log('Projects API response:', projectsData);
+        
+        setTasks(tasksData || []);
+        setProjects(projectsData || []);
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+        setError('Failed to load dashboard data - using fallback data');
+        // Set empty arrays as fallback
+        setTasks([]);
+        setProjects([]);
+      } finally {
+        setLoading(false);
+      }
     };
 
     fetchData();
@@ -66,7 +69,7 @@ const Dashboard: React.FC = () => {
       name: 'Overdue',
       value: safeTasks.filter(task => {
         if (task.status === 'completed') return false;
-        const dueDate = new Date(task.dueDate);
+        const dueDate = new Date(task.due_date || task.dueDate);
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         return dueDate < today;
@@ -77,7 +80,7 @@ const Dashboard: React.FC = () => {
   ];
 
   const recentTasks = safeTasks
-    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+    .sort((a, b) => new Date(b.updated_at || b.updatedAt).getTime() - new Date(a.updated_at || a.updatedAt).getTime())
     .slice(0, 5);
 
   if (loading) {
@@ -135,7 +138,7 @@ const Dashboard: React.FC = () => {
       {(() => {
         const overdueTasks = safeTasks.filter(task => {
           if (task.status === 'completed') return false;
-          const dueDate = new Date(task.dueDate);
+          const dueDate = new Date(task.due_date || task.dueDate);
           const today = new Date();
           today.setHours(0, 0, 0, 0);
           return dueDate < today;
@@ -152,7 +155,7 @@ const Dashboard: React.FC = () => {
                       <h3 className="font-medium text-gray-900">{task.title}</h3>
                       <p className="text-sm text-gray-600">{task.description}</p>
                       <p className="text-xs text-red-600 mt-1">
-                        Due: {new Date(task.dueDate).toLocaleDateString()}
+                        Due: {new Date(task.due_date || task.dueDate).toLocaleDateString()}
                       </p>
                     </div>
                     <div className="flex items-center space-x-2">

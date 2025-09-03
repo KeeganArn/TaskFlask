@@ -163,7 +163,7 @@ const Projects: React.FC = () => {
                   <h3 className="font-medium text-gray-900">{project.name}</h3>
                   <p className="text-sm text-gray-600">{project.description}</p>
                   <p className="text-xs text-gray-500 mt-1">
-                    Created {new Date(project.createdAt).toLocaleDateString()}
+                    Created {new Date(project.created_at || project.createdAt).toLocaleDateString()}
                   </p>
                 </div>
                 <div className="flex items-center space-x-2">

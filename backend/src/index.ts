@@ -1,33 +1,180 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import tasksRouter from './routes/tasks';
-import projectsRouter from './routes/projects';
+
+// Import routes
 import authRouter from './routes/auth';
+import projectsRouter from './routes/projects';
+import tasksRouter from './routes/tasks';
 import usersRouter from './routes/users';
+import organizationsRouter from './routes/organizations';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(helmet());
-app.use(cors());
-app.use(express.json());
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:3001',
+  credentials: true
+}));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
 
-// Routes
-app.use('/api/tasks', tasksRouter);
-app.use('/api/projects', projectsRouter);
+// Request logging middleware
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  next();
+});
+
+// API Routes
 app.use('/api/auth', authRouter);
+app.use('/api/projects', projectsRouter);
+app.use('/api/tasks', tasksRouter);
 app.use('/api/users', usersRouter);
+app.use('/api/organizations', organizationsRouter);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+  res.json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    version: '2.0',
+    features: [
+      'multi-tenant',
+      'rbac',
+      'organizations',
+      'enhanced-tasks',
+      'time-tracking',
+      'audit-logs'
+    ]
+  });
+});
+
+
+
+// API documentation endpoint
+app.get('/api/docs', (req, res) => {
+  res.json({
+    title: 'Flowbit API Documentation',
+    version: '2.0',
+    description: 'Multi-tenant task management API with role-based access control',
+    endpoints: {
+      authentication: {
+        'POST /api/auth/register': 'Register new user with organization',
+        'POST /api/auth/login': 'Login with organization context',
+        'POST /api/auth/invite': 'Invite user to organization',
+        'GET /api/auth/me': 'Get current user info'
+      },
+      organizations: {
+        'GET /api/organizations/current': 'Get current organization',
+        'PUT /api/organizations/current': 'Update organization',
+        'GET /api/organizations/members': 'Get organization members',
+        'PUT /api/organizations/members/:userId/role': 'Update member role',
+        'PUT /api/organizations/members/:userId/status': 'Update member status',
+        'DELETE /api/organizations/members/:userId': 'Remove member',
+        'GET /api/organizations/roles': 'Get organization roles',
+        'POST /api/organizations/roles': 'Create custom role',
+        'PUT /api/organizations/roles/:id': 'Update custom role',
+        'DELETE /api/organizations/roles/:id': 'Delete custom role',
+        'GET /api/organizations/invitations': 'Get pending invitations',
+        'DELETE /api/organizations/invitations/:id': 'Cancel invitation'
+      },
+      projects: {
+        'GET /api/projects': 'Get organization projects',
+        'GET /api/projects/:id': 'Get project details',
+        'POST /api/projects': 'Create project',
+        'PUT /api/projects/:id': 'Update project',
+        'DELETE /api/projects/:id': 'Delete project',
+        'GET /api/projects/:id/stats': 'Get project statistics',
+        'GET /api/projects/:id/tasks': 'Get project tasks',
+        'POST /api/projects/:id/members': 'Add project member',
+        'DELETE /api/projects/:id/members/:userId': 'Remove project member'
+      },
+      tasks: {
+        'GET /api/tasks': 'Get organization tasks with filters',
+        'GET /api/tasks/:id': 'Get task details',
+        'POST /api/tasks': 'Create task',
+        'PUT /api/tasks/:id': 'Update task',
+        'DELETE /api/tasks/:id': 'Delete task',
+        'POST /api/tasks/:id/comments': 'Add task comment',
+        'POST /api/tasks/:id/time': 'Log time for task',
+        'GET /api/tasks/overdue': 'Get overdue tasks'
+      }
+    },
+    permissions: {
+      organization: ['org.view', 'org.edit', 'org.settings', 'org.delete'],
+      users: ['users.view', 'users.invite', 'users.edit', 'users.remove'],
+      projects: ['projects.view', 'projects.create', 'projects.edit', 'projects.delete', 'projects.members.view', 'projects.members.add', 'projects.members.remove'],
+      tasks: ['tasks.view', 'tasks.create', 'tasks.edit', 'tasks.delete', 'tasks.assign', 'tasks.comment', 'tasks.time'],
+      roles: ['roles.view', 'roles.create', 'roles.edit', 'roles.delete'],
+      settings: ['settings.view', 'settings.edit']
+    },
+    roles: {
+      'owner': 'Full access within organization',
+      'admin': 'Administrative access within organization',
+      'project_manager': 'Manage projects and teams',
+      'team_lead': 'Lead team members and manage assigned projects',
+      'member': 'Work on tasks and projects',
+      'viewer': 'Read-only access to assigned projects'
+    }
+  });
+});
+
+// Default route
+app.get('/', (req, res) => {
+  res.json({
+    message: 'Flowbit API v2.0',
+    documentation: '/api/docs',
+    health: '/api/health',
+    version: '2.0.0'
+  });
+});
+
+// 404 handler
+app.use('*', (req, res) => {
+  res.status(404).json({
+    message: 'Endpoint not found',
+    documentation: '/api/docs'
+  });
+});
+
+// Global error handler
+app.use((error: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error('Global error handler:', error);
+  
+  if (error.type === 'entity.parse.failed') {
+    return res.status(400).json({ message: 'Invalid JSON in request body' });
+  }
+  
+  if (error.type === 'entity.too.large') {
+    return res.status(413).json({ message: 'Request body too large' });
+  }
+  
+  res.status(500).json({ 
+    message: 'Internal server error',
+    ...(process.env.NODE_ENV === 'development' && { error: error.message })
+  });
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, shutting down gracefully');
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('SIGINT received, shutting down gracefully');
+  process.exit(0);
 });
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`API available at http://localhost:${PORT}/api`);
-  console.log(`Health check: http://localhost:${PORT}/api/health`);
+  console.log(`🚀 Flowbit API v2.0 running on port ${PORT}`);
+  console.log(`📖 API Documentation: http://localhost:${PORT}/api/docs`);
+  console.log(`💚 Health Check: http://localhost:${PORT}/api/health`);
+  console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🏢 Multi-tenant with RBAC enabled`);
 });
+
+export default app;

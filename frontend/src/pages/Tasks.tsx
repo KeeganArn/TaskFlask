@@ -75,8 +75,8 @@ const Tasks: React.FC = () => {
       description: task.description,
       status: task.status,
       priority: task.priority,
-      dueDate: task.dueDate,
-      projectId: task.projectId
+      dueDate: task.due_date || task.dueDate,
+      projectId: task.project_id || task.projectId
     });
     setShowCreateForm(true);
   };
@@ -108,7 +108,7 @@ const Tasks: React.FC = () => {
   const filteredTasks = tasks.filter(task => {
     if (filterStatus !== 'all' && task.status !== filterStatus) return false;
     if (filterPriority !== 'all' && task.priority !== filterPriority) return false;
-    if (filterProject !== 'all' && task.projectId !== filterProject) return false;
+    if (filterProject !== 'all' && (task.project_id || task.projectId) !== filterProject) return false;
     if (searchTerm && !task.title.toLowerCase().includes(searchTerm.toLowerCase()) && 
         !task.description.toLowerCase().includes(searchTerm.toLowerCase())) return false;
     return true;
@@ -356,8 +356,8 @@ const Tasks: React.FC = () => {
                   </div>
                   <p className="text-sm text-gray-600 mt-1">{task.description}</p>
                   <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
-                    <span>Project: {getProjectName(task.projectId)}</span>
-                    <span>Due: {new Date(task.dueDate).toLocaleDateString()}</span>
+                    <span>Project: {getProjectName(task.project_id || task.projectId)}</span>
+                    <span>Due: {new Date(task.due_date || task.dueDate).toLocaleDateString()}</span>
                   </div>
                 </div>
                 <div className="flex items-center space-x-2 ml-4">

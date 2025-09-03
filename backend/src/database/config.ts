@@ -20,8 +20,11 @@ pool.on('connection', () => {
   console.log('Connected to MySQL database');
 });
 
-pool.on('error', (err) => {
-  console.error('Unexpected error on idle client', err);
+// Handle connection errors
+pool.on('connection', (connection) => {
+  connection.on('error', (err) => {
+    console.error('Unexpected error on database connection', err);
+  });
 });
 
 export default pool;
