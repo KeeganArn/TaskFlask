@@ -355,7 +355,7 @@ router.get('/roles', authenticate, async (req: AuthenticatedRequest, res: Respon
  */
 router.post('/roles', 
   authenticate, 
-  requirePermission('roles.create'),
+  requireOrganizationAdmin,
   async (req: AuthenticatedRequest<{}, {}, CreateRoleRequest>, res: Response) => {
   try {
     const { name, display_name, description, permissions } = req.body;

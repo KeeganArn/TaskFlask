@@ -529,8 +529,8 @@ router.post('/invite', authenticate, requireOrganizationAdmin, async (req: Authe
  */
 router.get('/me', authenticate, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const userId = req.user!.userId;
-    const organizationId = req.user!.organizationId;
+    const userId = req.user!.id;
+    const organizationId = req.user!.organization_id;
 
     const [userData] = await pool.execute(
       `SELECT u.*, om.role_id, o.id as org_id, o.name as org_name, o.slug as org_slug, o.invite_code, o.invite_code_enabled,
@@ -613,7 +613,7 @@ router.put('/status', authenticate, async (req: AuthenticatedRequest, res: Respo
              last_seen = CURRENT_TIMESTAMP,
              updated_at = CURRENT_TIMESTAMP
          WHERE id = ?`,
-        [user_status, status_message, req.user!.id]
+        [user_status || null, status_message || null, req.user!.id]
       );
 
       // Get updated user data

@@ -15,7 +15,8 @@ import {
   Minus
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { organizationsApi, authApi } from '../services/api';
+import { organizationsApi, authApi, messagesApi } from '../services/api';
+import { useNavigate } from 'react-router-dom';
 import { OrganizationMember, Role, CreateRoleRequest } from '../types';
 
 
@@ -42,6 +43,7 @@ const availablePermissions = [
 
 const TeamManagement: React.FC = () => {
   const { user, organization } = useAuth();
+  const navigate = useNavigate();
   const [members, setMembers] = useState<OrganizationMember[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
@@ -164,6 +166,22 @@ const TeamManagement: React.FC = () => {
     return member.user?.first_name && member.user?.last_name 
       ? `${member.user.first_name} ${member.user.last_name}`
       : member.user?.username || member.user?.email || 'Unknown User';
+  };
+
+  const startMessage = async (memberId: number) => {
+    try {
+      if (memberId === user?.id) {
+        alert("You can't message yourself!");
+        return;
+      }
+      
+      // Create or find direct message room
+      const room = await messagesApi.createDirectMessage(memberId);
+      navigate('/messages');
+    } catch (error) {
+      console.error('Error starting message:', error);
+      alert('Failed to start message. Please try again.');
+    }
   };
 
   return (
@@ -297,6 +315,18 @@ const TeamManagement: React.FC = () => {
                           </option>
                         ))}
                       </select>
+                    </div>
+                  )}
+                  
+                  {/* Message Button */}
+                  {member.user_id !== user?.id && (
+                    <div className="mt-3">
+                      <button
+                        onClick={() => startMessage(member.user_id)}
+                        className="w-full bg-primary-600 text-white text-sm px-3 py-1 rounded-md hover:bg-primary-700 transition-colors"
+                      >
+                        Send Message
+                      </button>
                     </div>
                   )}
                 </div>

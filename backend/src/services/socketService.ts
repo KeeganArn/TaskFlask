@@ -48,7 +48,7 @@ export class SocketService {
           return next(new Error('Authentication error: No token provided'));
         }
 
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret') as any;
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key-change-in-production') as any;
         
         // Get user details from database
         const [userRows] = await pool.execute(
@@ -56,8 +56,8 @@ export class SocketService {
            FROM users u 
            INNER JOIN organization_members om ON u.id = om.user_id 
            INNER JOIN roles r ON om.role_id = r.id
-           WHERE u.id = ? AND u.is_active = TRUE AND om.status = 'active'`,
-          [decoded.userId]
+           WHERE u.id = ?`,
+          [decoded.id || decoded.userId]
         );
 
         if ((userRows as any[]).length === 0) {

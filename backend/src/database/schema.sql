@@ -243,4 +243,72 @@ CREATE INDEX idx_audit_logs_resource ON audit_logs(resource_type, resource_id);
 CREATE INDEX idx_invitations_token ON invitations(token);
 CREATE INDEX idx_invitations_email ON invitations(email);
 
+-- Chat rooms for messaging
+CREATE TABLE chat_rooms (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  organization_id INT NOT NULL,
+  name VARCHAR(255),
+  type ENUM('direct', 'group', 'channel') NOT NULL DEFAULT 'direct',
+  description TEXT,
+  created_by INT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Chat participants
+CREATE TABLE chat_participants (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  chat_room_id INT NOT NULL,
+  user_id INT NOT NULL,
+  joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  left_at TIMESTAMP NULL,
+  role ENUM('admin', 'member') DEFAULT 'member',
+  UNIQUE KEY unique_chat_participant (chat_room_id, user_id)
+);
+
+-- Messages
+CREATE TABLE messages (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  chat_room_id INT NOT NULL,
+  sender_id INT NOT NULL,
+  content TEXT NOT NULL,
+  message_type ENUM('text', 'image', 'file', 'system') DEFAULT 'text',
+  reply_to_message_id INT NULL,
+  edited_at TIMESTAMP NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Message reactions
+CREATE TABLE message_reactions (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  message_id INT NOT NULL,
+  user_id INT NOT NULL,
+  emoji VARCHAR(10) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY unique_user_reaction (message_id, user_id, emoji)
+);
+
+-- Indexes for messaging tables
+CREATE INDEX idx_chat_rooms_organization ON chat_rooms(organization_id);
+CREATE INDEX idx_chat_rooms_type ON chat_rooms(type);
+CREATE INDEX idx_chat_participants_room ON chat_participants(chat_room_id);
+CREATE INDEX idx_chat_participants_user ON chat_participants(user_id);
+CREATE INDEX idx_messages_room ON messages(chat_room_id);
+CREATE INDEX idx_messages_sender ON messages(sender_id);
+CREATE INDEX idx_messages_created ON messages(created_at);
+CREATE INDEX idx_message_reactions_message ON message_reactions(message_id);
+CREATE INDEX idx_message_reactions_user ON message_reactions(user_id);
+
+-- Foreign key constraints for messaging tables
+ALTER TABLE chat_rooms ADD FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
+ALTER TABLE chat_rooms ADD FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE;
+ALTER TABLE chat_participants ADD FOREIGN KEY (chat_room_id) REFERENCES chat_rooms(id) ON DELETE CASCADE;
+ALTER TABLE chat_participants ADD FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+ALTER TABLE messages ADD FOREIGN KEY (chat_room_id) REFERENCES chat_rooms(id) ON DELETE CASCADE;
+ALTER TABLE messages ADD FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE;
+ALTER TABLE messages ADD FOREIGN KEY (reply_to_message_id) REFERENCES messages(id) ON DELETE SET NULL;
+ALTER TABLE message_reactions ADD FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE;
+ALTER TABLE message_reactions ADD FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+
 -- Schema complete - ready for copy-paste execution!

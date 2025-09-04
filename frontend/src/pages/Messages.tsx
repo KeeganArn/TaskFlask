@@ -117,11 +117,26 @@ const Messages: React.FC = () => {
     const messageContent = newMessage.trim();
     setNewMessage('');
     
-    // Send via WebSocket for real-time delivery
-    sendMessage(selectedRoom.id, messageContent);
-    
-    // Stop typing indicator
-    stopTyping(selectedRoom.id);
+    try {
+      // Send via API directly (more reliable than WebSocket)
+      const newMsg = await messagesApi.sendMessage(selectedRoom.id, {
+        content: messageContent,
+        message_type: 'text'
+      });
+      
+      // Add to local state immediately
+      setMessages(prev => [...prev, newMsg]);
+      
+      // Try WebSocket for real-time delivery to others (optional)
+      if (isConnected) {
+        sendMessage(selectedRoom.id, messageContent);
+        stopTyping(selectedRoom.id);
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      alert('Failed to send message. Please try again.');
+      setNewMessage(messageContent); // Restore message on error
+    }
   };
 
   const handleTyping = () => {
@@ -221,8 +236,8 @@ const Messages: React.FC = () => {
         {/* Connection Status */}
         <div className="px-4 py-2 bg-gray-50 border-b border-gray-200">
           <div className="flex items-center text-sm">
-            <div className={`w-2 h-2 rounded-full mr-2 ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
-            {isConnected ? 'Connected' : 'Disconnected'}
+            <div className={`w-2 h-2 rounded-full mr-2 ${isConnected ? 'bg-green-500' : 'bg-yellow-500'}`} />
+            {isConnected ? 'Real-time connected' : 'Basic messaging active'}
           </div>
         </div>
 
@@ -307,22 +322,40 @@ const Messages: React.FC = () => {
                   </div>
                   <div>
                     <h2 className="text-lg font-medium text-gray-900">
-                      {getRoomDisplayName(selectedRoom)}
+                      {selectedRoom.type === 'direct' 
+                        ? `Talking to ${getRoomDisplayName(selectedRoom)}`
+                        : getRoomDisplayName(selectedRoom)
+                      }
                     </h2>
                     <p className="text-sm text-gray-500">
-                      {selectedRoom.participant_count} participants
+                      {selectedRoom.type === 'direct' 
+                        ? 'Direct message'
+                        : `${selectedRoom.participant_count} participants`
+                      }
                     </p>
                   </div>
                 </div>
                 
                 <div className="flex items-center space-x-2">
-                  <button className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+                  <button 
+                    onClick={() => alert('Audio call feature coming soon!')}
+                    className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+                    title="Start audio call"
+                  >
                     <Phone className="h-5 w-5" />
                   </button>
-                  <button className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+                  <button 
+                    onClick={() => alert('Video call feature coming soon!')}
+                    className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+                    title="Start video call"
+                  >
                     <Video className="h-5 w-5" />
                   </button>
-                  <button className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+                  <button 
+                    onClick={() => alert('More options coming soon!')}
+                    className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+                    title="More options"
+                  >
                     <MoreVertical className="h-5 w-5" />
                   </button>
                 </div>
@@ -373,7 +406,7 @@ const Messages: React.FC = () => {
             {/* Message Input */}
             <form onSubmit={handleSendMessage} className="p-4 border-t border-gray-200 bg-white">
               <div className="flex space-x-4">
-                <input
+                                  <input
                   type="text"
                   value={newMessage}
                   onChange={(e) => {
@@ -382,11 +415,10 @@ const Messages: React.FC = () => {
                   }}
                   placeholder="Type a message..."
                   className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  disabled={!isConnected}
                 />
                 <button
                   type="submit"
-                  disabled={!newMessage.trim() || !isConnected}
+                  disabled={!newMessage.trim()}
                   className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   Send

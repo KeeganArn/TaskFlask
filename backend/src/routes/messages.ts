@@ -18,45 +18,66 @@ router.get('/rooms', authenticate, async (req: AuthenticatedRequest, res: Respon
       SELECT 
         cr.*,
         COUNT(DISTINCT cp.user_id) as participant_count,
-        COUNT(DISTINCT CASE WHEN m.id IS NOT NULL AND m.created_at > COALESCE(cp_user.last_read_at, '1970-01-01') THEN m.id END) as unread_count,
+        0 as unread_count,
         last_msg.content as last_message_content,
         last_msg.created_at as last_message_at,
         last_msg.message_type as last_message_type,
         sender.username as last_message_sender
       FROM chat_rooms cr
-      INNER JOIN chat_participants cp_user ON cr.id = cp_user.chat_room_id AND cp_user.user_id = ? AND cp_user.is_active = TRUE
-      LEFT JOIN chat_participants cp ON cr.id = cp.chat_room_id AND cp.is_active = TRUE
-      LEFT JOIN messages m ON cr.id = m.chat_room_id AND m.deleted_at IS NULL
-      LEFT JOIN messages last_msg ON cr.id = last_msg.chat_room_id AND last_msg.created_at = cr.last_message_at
+      INNER JOIN chat_participants cp_user ON cr.id = cp_user.chat_room_id AND cp_user.user_id = ? AND cp_user.left_at IS NULL
+      LEFT JOIN chat_participants cp ON cr.id = cp.chat_room_id AND cp.left_at IS NULL
+      LEFT JOIN messages m ON cr.id = m.chat_room_id
+      LEFT JOIN messages last_msg ON cr.id = last_msg.chat_room_id
       LEFT JOIN users sender ON last_msg.sender_id = sender.id
       WHERE cr.organization_id = ?
       GROUP BY cr.id
-      ORDER BY cr.last_message_at DESC, cr.updated_at DESC
+      ORDER BY cr.updated_at DESC
     `, [userId, organizationId]);
 
-    const chatRooms = (rows as any[]).map(row => ({
-      id: row.id,
-      name: row.name,
-      type: row.type,
-      organization_id: row.organization_id,
-      project_id: row.project_id,
-      created_by: row.created_by,
-      description: row.description,
-      is_private: row.is_private,
-      last_message_at: row.last_message_at,
-      created_at: row.created_at,
-      updated_at: row.updated_at,
-      participant_count: parseInt(row.participant_count),
-      unread_count: parseInt(row.unread_count),
-      last_message: row.last_message_content ? {
-        content: row.last_message_content,
-        created_at: row.last_message_at,
-        message_type: row.last_message_type,
-        sender: { username: row.last_message_sender }
-      } : null
-    }));
+    // Get participant details for each chat room
+    const chatRoomsWithParticipants = await Promise.all(
+      (rows as any[]).map(async (row) => {
+        // Get participants for this room
+        const [participants] = await pool.execute(`
+          SELECT cp.user_id, cp.role, u.username, u.first_name, u.last_name, u.email
+          FROM chat_participants cp
+          JOIN users u ON cp.user_id = u.id
+          WHERE cp.chat_room_id = ? AND cp.left_at IS NULL
+        `, [row.id]);
 
-    res.json(chatRooms);
+        return {
+          id: row.id,
+          name: row.name,
+          type: row.type,
+          organization_id: row.organization_id,
+          created_by: row.created_by,
+          description: row.description,
+          created_at: row.created_at,
+          updated_at: row.updated_at,
+          participant_count: parseInt(row.participant_count),
+          unread_count: parseInt(row.unread_count),
+          participants: (participants as any[]).map(p => ({
+            user_id: p.user_id,
+            role: p.role,
+            user: {
+              id: p.user_id,
+              username: p.username,
+              first_name: p.first_name,
+              last_name: p.last_name,
+              email: p.email
+            }
+          })),
+          last_message: row.last_message_content ? {
+            content: row.last_message_content,
+            created_at: row.last_message_at,
+            message_type: row.last_message_type,
+            sender: { username: row.last_message_sender }
+          } : null
+        };
+      })
+    );
+
+    res.json(chatRoomsWithParticipants);
   } catch (error) {
     console.error('Error fetching chat rooms:', error);
     res.status(500).json({ message: 'Internal server error' });
@@ -73,7 +94,7 @@ router.post('/rooms', authenticate, async (req: AuthenticatedRequest<{}, {}, Cre
     const organizationId = req.user!.organization_id;
 
     // Validate participants are in the same organization
-    if (participant_ids.length > 0) {
+    if (participant_ids && participant_ids.length > 0) {
       const [participantCheck] = await pool.execute(
         `SELECT COUNT(*) as count FROM users WHERE id IN (${participant_ids.map(() => '?').join(',')}) AND organization_id = ?`,
         [...participant_ids, organizationId]
@@ -85,7 +106,7 @@ router.post('/rooms', authenticate, async (req: AuthenticatedRequest<{}, {}, Cre
     }
 
     // For direct messages, check if chat room already exists
-    if (type === 'direct' && participant_ids.length === 1) {
+    if (type === 'direct' && participant_ids && participant_ids.length === 1) {
       const otherUserId = participant_ids[0];
       const [existingRoom] = await pool.execute(`
         SELECT cr.id 
@@ -109,9 +130,9 @@ router.post('/rooms', authenticate, async (req: AuthenticatedRequest<{}, {}, Cre
 
       // Create chat room
       const [roomResult] = await connection.execute(
-        `INSERT INTO chat_rooms (name, type, organization_id, project_id, created_by, description, is_private)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [name, type, organizationId, project_id, userId, description, is_private]
+        `INSERT INTO chat_rooms (name, type, organization_id, created_by, description)
+         VALUES (?, ?, ?, ?, ?)`,
+        [name || null, type, organizationId, userId, description || null]
       );
 
       const chatRoomId = (roomResult as any).insertId;
@@ -124,13 +145,15 @@ router.post('/rooms', authenticate, async (req: AuthenticatedRequest<{}, {}, Cre
       );
 
       // Add other participants
-      for (const participantId of participant_ids) {
-        if (participantId !== userId) {
-          await connection.execute(
-            `INSERT INTO chat_participants (chat_room_id, user_id, role)
-             VALUES (?, ?, 'member')`,
-            [chatRoomId, participantId]
-          );
+      if (participant_ids && participant_ids.length > 0) {
+        for (const participantId of participant_ids) {
+          if (participantId !== userId) {
+            await connection.execute(
+              `INSERT INTO chat_participants (chat_room_id, user_id, role)
+               VALUES (?, ?, 'member')`,
+              [chatRoomId, participantId]
+            );
+          }
         }
       }
 
@@ -140,7 +163,7 @@ router.post('/rooms', authenticate, async (req: AuthenticatedRequest<{}, {}, Cre
       const [createdRoom] = await connection.execute(`
         SELECT cr.*, COUNT(cp.user_id) as participant_count
         FROM chat_rooms cr
-        LEFT JOIN chat_participants cp ON cr.id = cp.chat_room_id AND cp.is_active = TRUE
+        LEFT JOIN chat_participants cp ON cr.id = cp.chat_room_id AND cp.left_at IS NULL
         WHERE cr.id = ?
         GROUP BY cr.id
       `, [chatRoomId]);
@@ -169,14 +192,23 @@ router.get('/rooms/:roomId/messages', authenticate, async (req: AuthenticatedReq
 
     // Verify user has access to this room
     const [accessCheck] = await pool.execute(`
-      SELECT cr.id 
+      SELECT cr.id, cr.organization_id, cp.user_id, cp.left_at
       FROM chat_rooms cr
       INNER JOIN chat_participants cp ON cr.id = cp.chat_room_id
-      WHERE cr.id = ? AND cr.organization_id = ? AND cp.user_id = ? AND cp.is_active = TRUE
-    `, [roomId, organizationId, userId]);
+      WHERE cr.id = ? AND cp.user_id = ? AND cp.left_at IS NULL
+    `, [roomId, userId]);
+
+    // console.log('Access check for room', roomId, 'user', userId, 'org', organizationId, 'result:', accessCheck);
 
     if ((accessCheck as any[]).length === 0) {
       return res.status(403).json({ message: 'Access denied to this chat room' });
+    }
+
+    // Additional check: verify organization matches
+    const roomData = (accessCheck as any[])[0];
+    if (roomData.organization_id !== organizationId) {
+      // console.log('Organization mismatch:', roomData.organization_id, 'vs', organizationId);
+      return res.status(403).json({ message: 'Access denied: organization mismatch' });
     }
 
     const offset = (parseInt(page as string) - 1) * parseInt(limit as string);
@@ -222,11 +254,7 @@ router.get('/rooms/:roomId/messages', authenticate, async (req: AuthenticatedReq
       } : null
     }));
 
-    // Update last read timestamp
-    await pool.execute(
-      `UPDATE chat_participants SET last_read_at = CURRENT_TIMESTAMP WHERE chat_room_id = ? AND user_id = ?`,
-      [roomId, userId]
-    );
+    // Note: Read timestamps not implemented yet
 
     res.json(transformedMessages.reverse()); // Reverse to show oldest first
   } catch (error) {
@@ -247,14 +275,23 @@ router.post('/rooms/:roomId/messages', authenticate, async (req: AuthenticatedRe
 
     // Verify user has access to this room
     const [accessCheck] = await pool.execute(`
-      SELECT cr.id 
+      SELECT cr.id, cr.organization_id, cp.user_id, cp.left_at
       FROM chat_rooms cr
       INNER JOIN chat_participants cp ON cr.id = cp.chat_room_id
-      WHERE cr.id = ? AND cr.organization_id = ? AND cp.user_id = ? AND cp.is_active = TRUE
-    `, [roomId, organizationId, userId]);
+      WHERE cr.id = ? AND cp.user_id = ? AND cp.left_at IS NULL
+    `, [roomId, userId]);
+
+    // console.log('Send message access check for room', roomId, 'user', userId, 'org', organizationId, 'result:', accessCheck);
 
     if ((accessCheck as any[]).length === 0) {
       return res.status(403).json({ message: 'Access denied to this chat room' });
+    }
+
+    // Additional check: verify organization matches
+    const roomData = (accessCheck as any[])[0];
+    if (roomData.organization_id !== organizationId) {
+      // console.log('Send message organization mismatch:', roomData.organization_id, 'vs', organizationId);
+      return res.status(403).json({ message: 'Access denied: organization mismatch' });
     }
 
     const connection = await pool.getConnection();
@@ -264,16 +301,16 @@ router.post('/rooms/:roomId/messages', authenticate, async (req: AuthenticatedRe
 
       // Insert message
       const [messageResult] = await connection.execute(
-        `INSERT INTO messages (chat_room_id, sender_id, content, message_type, reply_to_message_id, file_url, file_name, file_size)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [roomId, userId, content, message_type, reply_to_message_id, file_url, file_name, file_size]
+        `INSERT INTO messages (chat_room_id, sender_id, content, message_type, reply_to_message_id)
+         VALUES (?, ?, ?, ?, ?)`,
+        [roomId, userId, content, message_type, reply_to_message_id || null]
       );
 
       const messageId = (messageResult as any).insertId;
 
-      // Update chat room's last message timestamp
+      // Update chat room's updated timestamp
       await connection.execute(
-        `UPDATE chat_rooms SET last_message_at = CURRENT_TIMESTAMP WHERE id = ?`,
+        `UPDATE chat_rooms SET updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
         [roomId]
       );
 
@@ -337,7 +374,7 @@ router.get('/contacts', authenticate, async (req: AuthenticatedRequest, res: Res
         u.user_status, u.status_message, u.last_seen
       FROM users u
       INNER JOIN organization_members om ON u.id = om.user_id
-      WHERE om.organization_id = ? AND u.id != ? AND om.status = 'active' AND u.is_active = TRUE
+      WHERE om.organization_id = ? AND u.id != ?
       ORDER BY u.user_status = 'online' DESC, u.first_name ASC, u.username ASC
     `, [organizationId, userId]);
 

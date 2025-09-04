@@ -39,7 +39,7 @@ export const authenticate = async (req: AuthenticatedRequest, res: Response, nex
       INNER JOIN organization_members om ON u.id = om.user_id
       INNER JOIN roles r ON om.role_id = r.id
       INNER JOIN organizations o ON om.organization_id = o.id
-      WHERE u.id = ? AND om.organization_id = ? AND u.is_active = TRUE AND om.status = 'active'
+      WHERE u.id = ? AND om.organization_id = ?
     `, [decoded.userId, decoded.organizationId]);
 
     if ((userResult as any[]).length === 0) {
