@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
+import { SocketProvider } from './contexts/SocketContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 import Login from './pages/Login';
@@ -11,12 +12,14 @@ import Tasks from './pages/Tasks';
 import TeamManagement from './pages/TeamManagement';
 import Profile from './pages/Profile';
 import OrganizationSettings from './pages/OrganizationSettings';
+import Messages from './pages/Messages';
 import Unauthorized from './pages/Unauthorized';
 
 function App() {
   return (
     <AuthProvider>
-      <Router>
+      <SocketProvider>
+        <Router>
         <Routes>
           {/* Public Routes */}
           <Route path="/login" element={<Login />} />
@@ -49,6 +52,8 @@ function App() {
                   
                   <Route path="/settings" element={<OrganizationSettings />} />
                   
+                  <Route path="/messages" element={<Messages />} />
+                  
                   {/* Catch all redirect */}
                   <Route path="*" element={<Navigate to="/dashboard" replace />} />
                 </Routes>
@@ -56,7 +61,8 @@ function App() {
             </ProtectedRoute>
           } />
         </Routes>
-      </Router>
+        </Router>
+      </SocketProvider>
     </AuthProvider>
   );
 }

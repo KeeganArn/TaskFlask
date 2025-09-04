@@ -1,25 +1,26 @@
 import { Router, Request, Response } from 'express';
 import { Task, CreateTaskRequest, UpdateTaskRequest } from '../types';
 import pool from '../database/config';
-import { authenticateToken } from '../middleware/auth';
+import { authenticate } from '../middleware/rbac';
+import { AuthenticatedRequest } from '../types';
 
 const router = Router();
 
 // GET /tasks - Get all tasks for authenticated user
-router.get('/', authenticateToken, async (req: Request & { user?: { userId: number; email: string } }, res: Response) => {
+router.get('/', authenticate, async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ message: 'User not authenticated' });
     }
 
-    const userId = req.user.userId;
+    const organizationId = req.user.organization_id;
     const [rows] = await pool.execute(`
       SELECT t.*, p.name as project_name 
       FROM tasks t 
       LEFT JOIN projects p ON t.project_id = p.id 
-      WHERE t.user_id = ?
+      WHERE t.organization_id = ?
       ORDER BY t.updated_at DESC
-    `, [userId]);
+    `, [organizationId]);
     
     // Transform snake_case to camelCase for frontend
     const transformedRows = (rows as any[]).map(row => ({
@@ -28,7 +29,7 @@ router.get('/', authenticateToken, async (req: Request & { user?: { userId: numb
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       projectId: row.project_id,
-      userId: row.user_id,
+      userId: row.assignee_id || row.reporter_id,
       projectName: row.project_name
     }));
     
@@ -74,8 +75,10 @@ router.get('/:id', async (req: Request, res: Response) => {
 });
 
 // POST /tasks - Create new task
-router.post('/', authenticateToken, async (req: Request<{}, {}, CreateTaskRequest> & { user?: { userId: number; email: string } }, res: Response) => {
+router.post('/', authenticate, async (req: AuthenticatedRequest<{}, {}, CreateTaskRequest>, res: Response) => {
   try {
+    console.log('Task creation - Request body:', req.body);
+    console.log('Task creation - User:', req.user);
     const { title, description, status, priority, dueDate, projectId } = req.body;
     
     if (!title || !description || !status || !priority || !dueDate || !projectId) {
@@ -86,11 +89,22 @@ router.post('/', authenticateToken, async (req: Request<{}, {}, CreateTaskReques
       return res.status(401).json({ message: 'User not authenticated' });
     }
 
-    const userId = req.user.userId;
+    const userId = req.user.id;
+    const organizationId = req.user.organization_id;
+    
+    // Verify the project belongs to the user's organization
+    const [projectCheck] = await pool.execute(
+      'SELECT id FROM projects WHERE id = ? AND organization_id = ?',
+      [projectId, organizationId]
+    );
+    
+    if ((projectCheck as any[]).length === 0) {
+      return res.status(403).json({ message: 'Project not found or access denied' });
+    }
     
     const [result] = await pool.execute(
-      'INSERT INTO tasks (title, description, status, priority, due_date, project_id, user_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [title, description, status, priority, dueDate, projectId, userId]
+      'INSERT INTO tasks (title, description, status, priority, due_date, project_id, organization_id, reporter_id, assignee_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [title, description, status, priority, dueDate, projectId, organizationId, userId, userId]
     );
 
     // Get the inserted task
@@ -107,7 +121,7 @@ router.post('/', authenticateToken, async (req: Request<{}, {}, CreateTaskReques
       createdAt: task.created_at,
       updatedAt: task.updated_at,
       projectId: task.project_id,
-      userId: task.user_id,
+      userId: task.assignee_id || task.reporter_id,
       projectName: task.project_name
     };
 

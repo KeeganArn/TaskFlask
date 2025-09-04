@@ -19,7 +19,12 @@ import {
   ProjectStats,
   TaskComment,
   TimeEntry,
-  PaginatedResponse
+  PaginatedResponse,
+  ChatRoom,
+  Message,
+  CreateChatRoomRequest,
+  CreateMessageRequest,
+  User
 } from '../types';
 
 const API_BASE_URL = '/api';
@@ -309,6 +314,36 @@ export const getPriorityColor = (priority: string): string => {
   };
   
   return colors[priority] || 'bg-gray-100 text-gray-800';
+};
+
+// Messages API
+export const messagesApi = {
+  // Chat rooms
+  getRooms: () => 
+    api.get<ChatRoom[]>('/messages/rooms').then(res => res.data),
+    
+  createRoom: (data: CreateChatRoomRequest) => 
+    api.post<ChatRoom>('/messages/rooms', data).then(res => res.data),
+    
+  // Messages
+  getMessages: (roomId: number, page = 1, limit = 50) => 
+    api.get<Message[]>(`/messages/rooms/${roomId}/messages`, { 
+      params: { page, limit } 
+    }).then(res => res.data),
+    
+  sendMessage: (roomId: number, data: CreateMessageRequest) => 
+    api.post<Message>(`/messages/rooms/${roomId}/messages`, data).then(res => res.data),
+    
+  // Contacts
+  getContacts: () => 
+    api.get<User[]>('/messages/contacts').then(res => res.data),
+    
+  // Utility function to create direct message room
+  createDirectMessage: (userId: number) => 
+    api.post<ChatRoom>('/messages/rooms', {
+      type: 'direct',
+      participant_ids: [userId]
+    }).then(res => res.data),
 };
 
 export default api;

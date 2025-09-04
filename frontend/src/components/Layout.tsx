@@ -8,6 +8,7 @@ import {
   Settings, 
   LogOut, 
   Menu,
+  MessageCircle,
   X,
   Bell,
   Search,
@@ -73,6 +74,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       href: '/team',
       icon: Users,
       show: canViewUsers
+    },
+    {
+      name: 'Messages',
+      href: '/messages',
+      icon: MessageCircle,
+      show: true
     },
     {
       name: 'Settings',

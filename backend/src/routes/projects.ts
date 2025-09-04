@@ -1,21 +1,22 @@
 import { Router, Request, Response } from 'express';
 import { Project, CreateProjectRequest, UpdateProjectRequest } from '../types';
 import pool from '../database/config';
-import { authenticateToken } from '../middleware/auth';
+import { authenticate } from '../middleware/rbac';
+import { AuthenticatedRequest } from '../types';
 
 const router = Router();
 
 // GET /projects - Get all projects for authenticated user
-router.get('/', authenticateToken, async (req: Request & { user?: { userId: number; email: string } }, res: Response) => {
+router.get('/', authenticate, async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ message: 'User not authenticated' });
     }
 
-    const userId = req.user.userId;
+    const organizationId = req.user.organization_id;
     const [rows] = await pool.execute(
-      'SELECT * FROM projects WHERE user_id = ? ORDER BY created_at DESC',
-      [userId]
+      'SELECT * FROM projects WHERE organization_id = ? ORDER BY created_at DESC',
+      [organizationId]
     );
     res.json(rows);
   } catch (error) {
@@ -45,7 +46,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 });
 
 // POST /projects - Create new project
-router.post('/', authenticateToken, async (req: Request<{}, {}, CreateProjectRequest> & { user?: { userId: number; email: string } }, res: Response) => {
+router.post('/', authenticate, async (req: AuthenticatedRequest<{}, {}, CreateProjectRequest>, res: Response) => {
   try {
     console.log('Projects POST - Request body:', req.body);
     console.log('Projects POST - User from request:', req.user);
@@ -61,12 +62,13 @@ router.post('/', authenticateToken, async (req: Request<{}, {}, CreateProjectReq
       return res.status(401).json({ message: 'User not authenticated' });
     }
 
-    const userId = req.user.userId;
-    console.log('Projects POST - Using user ID:', userId);
+    const userId = req.user.id;
+    const organizationId = req.user.organization_id;
+    console.log('Projects POST - Using user ID:', userId, 'org ID:', organizationId);
     
     const [result] = await pool.execute(
-      'INSERT INTO projects (name, description, user_id) VALUES (?, ?, ?)',
-      [name, description, userId]
+      'INSERT INTO projects (name, description, organization_id, owner_id) VALUES (?, ?, ?, ?)',
+      [name, description, organizationId, userId]
     );
 
     console.log('Projects POST - Insert result:', result);

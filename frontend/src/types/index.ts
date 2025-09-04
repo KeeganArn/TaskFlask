@@ -349,3 +349,80 @@ export interface PaginatedResponse<T> {
     pages: number;
   };
 }
+
+// Messaging types
+export interface ChatRoom {
+  id: number;
+  name?: string;
+  type: 'direct' | 'group' | 'project' | 'general';
+  organization_id: number;
+  project_id?: number;
+  created_by: number;
+  description?: string;
+  is_private: boolean;
+  last_message_at?: string;
+  created_at: string;
+  updated_at: string;
+  participant_count?: number;
+  unread_count?: number;
+  last_message?: Message;
+  participants?: ChatParticipant[];
+}
+
+export interface ChatParticipant {
+  id: number;
+  chat_room_id: number;
+  user_id: number;
+  role: 'owner' | 'admin' | 'member';
+  joined_at: string;
+  last_read_at?: string;
+  notifications_enabled: boolean;
+  is_active: boolean;
+  user?: User;
+}
+
+export interface Message {
+  id: number;
+  chat_room_id: number;
+  sender_id: number;
+  content: string;
+  message_type: 'text' | 'file' | 'image' | 'system';
+  reply_to_message_id?: number;
+  file_url?: string;
+  file_name?: string;
+  file_size?: number;
+  edited_at?: string;
+  deleted_at?: string;
+  created_at: string;
+  updated_at: string;
+  sender?: User;
+  reply_to_message?: Message;
+  reactions?: MessageReaction[];
+}
+
+export interface MessageReaction {
+  id: number;
+  message_id: number;
+  user_id: number;
+  emoji: string;
+  created_at: string;
+  user?: User;
+}
+
+export interface CreateChatRoomRequest {
+  name?: string;
+  type: 'direct' | 'group' | 'project' | 'general';
+  description?: string;
+  is_private?: boolean;
+  project_id?: number;
+  participant_ids: number[];
+}
+
+export interface CreateMessageRequest {
+  content: string;
+  message_type?: 'text' | 'file' | 'image';
+  reply_to_message_id?: number;
+  file_url?: string;
+  file_name?: string;
+  file_size?: number;
+}

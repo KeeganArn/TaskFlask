@@ -16,8 +16,7 @@ CREATE TABLE IF NOT EXISTS organizations (
     max_projects INT DEFAULT 10, -- Based on subscription plan
     settings JSON, -- Organization-specific settings
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (default_role_id) REFERENCES roles(id) ON DELETE SET NULL
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
 -- Create roles table for RBAC
@@ -31,7 +30,6 @@ CREATE TABLE IF NOT EXISTS roles (
     organization_id INT, -- NULL for system roles, specific for custom org roles
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
     UNIQUE KEY unique_role_per_org (name, organization_id)
 );
 
@@ -208,12 +206,16 @@ CREATE TABLE IF NOT EXISTS invitations (
     FOREIGN KEY (invited_by) REFERENCES users(id) ON DELETE CASCADE
 );
 
--- Create indexes for better performance
-CREATE INDEX idx_organizations_slug ON organizations(slug);
+-- End of core tables
+
+-- All indexes (created at the end to avoid dependency issues)
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_organization ON users(organization_id);
 CREATE INDEX idx_users_status ON users(user_status);
 CREATE INDEX idx_users_last_seen ON users(last_seen);
+CREATE INDEX idx_organizations_slug ON organizations(slug);
+
+-- Core indexes only
 CREATE INDEX idx_users_email_verification ON users(email_verification_token);
 CREATE INDEX idx_users_password_reset ON users(password_reset_token);
 CREATE INDEX idx_org_members_org_user ON organization_members(organization_id, user_id);
@@ -241,12 +243,4 @@ CREATE INDEX idx_audit_logs_resource ON audit_logs(resource_type, resource_id);
 CREATE INDEX idx_invitations_token ON invitations(token);
 CREATE INDEX idx_invitations_email ON invitations(email);
 
--- Insert default system roles
-INSERT INTO roles (name, display_name, description, permissions, is_system_role, organization_id) VALUES
-('super_admin', 'Super Admin', 'Full system access across all organizations', '["*"]', TRUE, NULL),
-('org_owner', 'Organization Owner', 'Full access within organization', '["org.*", "projects.*", "tasks.*", "users.*", "settings.*"]', TRUE, NULL),
-('org_admin', 'Organization Admin', 'Administrative access within organization', '["projects.*", "tasks.*", "users.view", "users.invite", "settings.view"]', TRUE, NULL),
-('project_manager', 'Project Manager', 'Manage projects and teams', '["projects.view", "projects.edit", "projects.create", "tasks.*", "users.view"]', TRUE, NULL),
-('team_lead', 'Team Lead', 'Lead team members and manage assigned projects', '["projects.view", "projects.edit", "tasks.*", "users.view"]', TRUE, NULL),
-('developer', 'Developer', 'Work on tasks and projects', '["projects.view", "tasks.view", "tasks.edit", "tasks.create", "tasks.comment"]', TRUE, NULL),
-('viewer', 'Viewer', 'Read-only access to assigned projects', '["projects.view", "tasks.view"]', TRUE, NULL);
+-- Schema complete - ready for copy-paste execution!

@@ -29,6 +29,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [permissions, setPermissions] = useState<string[]>([]);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isWindowFocused, setIsWindowFocused] = useState(true);
 
   // Initialize auth state from localStorage
   useEffect(() => {
@@ -92,6 +93,66 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     initializeAuth();
   }, []);
+
+  // Track window focus to manage online status
+  useEffect(() => {
+    const handleFocus = () => {
+      setIsWindowFocused(true);
+      if (user && token) {
+        authApi.updateUserStatus('online').catch((error) => {
+          console.warn('Failed to update status to online:', error);
+        });
+      }
+    };
+
+    const handleBlur = () => {
+      setIsWindowFocused(false);
+      if (user && token) {
+        // Don't immediately set to offline, just track that window is not focused
+        // We'll set to offline after a delay or when they actually leave
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        setIsWindowFocused(true);
+        if (user && token) {
+          authApi.updateUserStatus('online').catch((error) => {
+            console.warn('Failed to update status to online:', error);
+          });
+        }
+      } else {
+        setIsWindowFocused(false);
+        // Set to offline when tab is hidden for more than 5 minutes
+        setTimeout(() => {
+          if (document.visibilityState === 'hidden' && user && token) {
+            authApi.updateUserStatus('offline').catch((error) => {
+              console.warn('Failed to update status to offline:', error);
+            });
+          }
+        }, 5 * 60 * 1000); // 5 minutes
+      }
+    };
+
+    const handleBeforeUnload = () => {
+      if (user && token) {
+        // Set to offline when user closes tab/browser
+        navigator.sendBeacon('/api/auth/status', JSON.stringify({ user_status: 'offline' }));
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('blur', handleBlur);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('blur', handleBlur);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [user, token]);
 
   const login = async (credentials: LoginRequest): Promise<AuthResponse> => {
     try {
