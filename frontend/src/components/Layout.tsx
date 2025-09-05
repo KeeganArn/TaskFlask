@@ -14,9 +14,15 @@ import {
   Search,
   Building2,
   User,
-  ChevronDown
+  ChevronDown,
+  CreditCard,
+  Clock,
+  BarChart3,
+  FileText
 } from 'lucide-react';
 import { useAuth, usePermission, useUserDisplayName } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
+import { useNotifications } from '../contexts/NotificationContext';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -26,7 +32,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, organization, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const userDisplayName = useUserDisplayName();
+  const { permission: notificationPermission, isEnabled: notificationsEnabled, requestPermission, toggleNotifications } = useNotifications();
   
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -43,6 +51,27 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [userMenuOpen]);
+
+  // Handle notification button click
+  const handleNotificationClick = async () => {
+    try {
+      if (notificationPermission === 'denied') {
+        alert('Notifications are blocked. Please enable them in your browser settings.');
+        return;
+      }
+
+      if (notificationPermission === 'granted') {
+        // Toggle notifications on/off
+        toggleNotifications();
+        return;
+      }
+
+      // Request permission if not granted yet
+      await requestPermission();
+    } catch (error) {
+      alert('Failed to enable notifications. Please try again.');
+    }
+  };
 
   // Permission checks
   const canViewUsers = usePermission('users.view');
@@ -82,10 +111,34 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       show: true
     },
     {
+      name: 'Time Tracking',
+      href: '/time-tracking',
+      icon: Clock,
+      show: true
+    },
+    {
+      name: 'Analytics',
+      href: '/analytics',
+      icon: BarChart3,
+      show: true
+    },
+    {
+      name: 'Documents',
+      href: '/documents',
+      icon: FileText,
+      show: true
+    },
+    {
       name: 'Settings',
       href: '/settings',
       icon: Settings,
       show: canViewSettings
+    },
+    {
+      name: 'Billing',
+      href: '/billing',
+      icon: CreditCard,
+      show: true
     }
   ].filter(item => item.show);
 
@@ -106,14 +159,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         
         <div className="relative flex-1 flex flex-col max-w-xs w-full bg-white">
           <div className="absolute top-0 right-0 -mr-12 pt-2">
-            <button
+          <button
               className="ml-1 flex items-center justify-center h-10 w-10 rounded-full focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
-              onClick={() => setSidebarOpen(false)}
-            >
+            onClick={() => setSidebarOpen(false)}
+          >
               <X className="h-6 w-6 text-white" />
-            </button>
-          </div>
-          
+          </button>
+        </div>
+        
           <div className="flex-1 h-0 pt-5 pb-4 overflow-y-auto">
             <div className="flex-shrink-0 flex items-center px-4">
               <div className="flex items-center">
@@ -140,30 +193,30 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </div>
             
             <nav className="mt-5 px-2 space-y-1">
-              {navigation.map((item) => {
+            {navigation.map((item) => {
                 const isActive = location.pathname === item.href;
-                return (
-                  <Link
-                    key={item.name}
-                    to={item.href}
+              return (
+                <Link
+                  key={item.name}
+                  to={item.href}
                     className={`group flex items-center px-2 py-2 text-base font-medium rounded-md ${
                       isActive
                         ? 'bg-primary-100 text-primary-900'
-                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                    }`}
-                    onClick={() => setSidebarOpen(false)}
-                  >
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  }`}
+                  onClick={() => setSidebarOpen(false)}
+                >
                     <item.icon className={`mr-4 h-6 w-6 ${
                       isActive ? 'text-primary-500' : 'text-gray-400 group-hover:text-gray-500'
-                    }`} />
-                    {item.name}
-                  </Link>
-                );
-              })}
+                  }`} />
+                  {item.name}
+                </Link>
+              );
+            })}
             </nav>
           </div>
         </div>
-      </div>
+          </div>
 
       {/* Desktop sidebar */}
       <div className="hidden md:flex md:flex-shrink-0">
@@ -190,7 +243,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   <div className="ml-3">
                     <h1 className="text-lg font-semibold text-gray-900">Flowbit</h1>
                     <p className="text-xs text-gray-500 truncate">{organization?.name}</p>
-                  </div>
+                </div>
                 </div>
               </div>
               
@@ -216,7 +269,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 })}
               </nav>
             </div>
-          </div>
+            </div>
         </div>
       </div>
 
@@ -224,9 +277,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <div className="flex flex-col w-0 flex-1 overflow-hidden">
         {/* Top navigation */}
         <div className="relative z-10 flex-shrink-0 flex h-16 bg-white shadow">
-          <button
+            <button
             className="px-4 border-r border-gray-200 text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500 md:hidden"
-            onClick={() => setSidebarOpen(true)}
+              onClick={() => setSidebarOpen(true)}
           >
             <Menu className="h-6 w-6" />
           </button>
@@ -251,8 +304,36 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             
             <div className="ml-4 flex items-center md:ml-6">
               {/* Notifications */}
-              <button className="bg-white p-1 rounded-full text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+              <button 
+                onClick={handleNotificationClick}
+                className={`bg-white p-1 rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors ${
+                  notificationPermission === 'granted' && notificationsEnabled
+                    ? 'text-green-600 hover:text-green-700' 
+                    : notificationPermission === 'granted' && !notificationsEnabled
+                    ? 'text-yellow-500 hover:text-yellow-600'
+                    : notificationPermission === 'denied'
+                    ? 'text-red-400 hover:text-red-500'
+                    : 'text-gray-400 hover:text-gray-500'
+                }`}
+                title={
+                  notificationPermission === 'granted' && notificationsEnabled
+                    ? 'Notifications enabled - click to disable' 
+                    : notificationPermission === 'granted' && !notificationsEnabled
+                    ? 'Notifications disabled - click to enable'
+                    : notificationPermission === 'denied'
+                    ? 'Notifications blocked - check browser settings'
+                    : 'Click to enable desktop notifications'
+                }
+              >
                 <Bell className="h-6 w-6" />
+              </button>
+
+              <button
+                onClick={toggleTheme}
+                className="ml-3 bg-white px-2 py-1 rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 text-gray-600 hover:text-gray-800"
+                title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+              >
+                {theme === 'dark' ? 'Light' : 'Dark'}
               </button>
 
               {/* Profile dropdown */}
@@ -313,8 +394,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     >
                       <Settings className="mr-3 h-4 w-4" />
                       Settings
-                    </button>
-                    
+            </button>
+            
                     <button
                       onClick={() => {
                         setUserMenuOpen(false);
@@ -325,8 +406,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                       <LogOut className="mr-3 h-4 w-4" />
                       Sign out
                     </button>
-                  </div>
-                )}
+                </div>
+              )}
               </div>
             </div>
           </div>
@@ -336,7 +417,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         <main className="flex-1 relative overflow-y-auto focus:outline-none">
           <div className="py-6">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
-              {children}
+          {children}
             </div>
           </div>
         </main>

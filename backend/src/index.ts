@@ -11,6 +11,15 @@ import tasksRouter from './routes/tasks';
 import usersRouter from './routes/users';
 import organizationsRouter from './routes/organizations';
 import messagesRouter from './routes/messages';
+import subscriptionsRouter from './routes/subscriptions';
+import callsRouter from './routes/calls';
+import timeTrackingRouter from './routes/timeTracking';
+import analyticsRouter from './routes/analytics';
+import documentsRouter from './routes/documents';
+import brandingRouter from './routes/branding';
+import auditLogsRouter from './routes/auditLogs';
+import apiKeysRouter from './routes/apiKeys';
+import supportRouter from './routes/support';
 
 const app = express();
 const server = createServer(app);
@@ -41,6 +50,15 @@ app.use('/api/tasks', tasksRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/organizations', organizationsRouter);
 app.use('/api/messages', messagesRouter);
+app.use('/api/subscriptions', subscriptionsRouter);
+app.use('/api/calls', callsRouter);
+app.use('/api/time-tracking', timeTrackingRouter);
+app.use('/api/analytics', analyticsRouter);
+app.use('/api/documents', documentsRouter);
+app.use('/api/branding', brandingRouter);
+app.use('/api/audit-logs', auditLogsRouter);
+app.use('/api/api-keys', apiKeysRouter);
+app.use('/api/support', supportRouter);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

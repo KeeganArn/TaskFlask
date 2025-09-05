@@ -2,6 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Search, MessageCircle, Users, Phone, Video, MoreVertical } from 'lucide-react';
 import { useSocket, useMessagingSocket } from '../contexts/SocketContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useNotifications } from '../contexts/NotificationContext';
+import { useCall } from '../contexts/CallContext';
+import VideoCall from '../components/VideoCall';
 import { messagesApi } from '../services/api';
 import { ChatRoom, Message, User } from '../types';
 
@@ -18,6 +21,8 @@ const Messages: React.FC = () => {
 
   const { user } = useAuth();
   const { isConnected, joinRoom, leaveRoom, sendMessage, startTyping, stopTyping } = useSocket();
+  const { showNotification } = useNotifications();
+  const { currentCall, isInCall, startCall, endCall } = useCall();
 
   // Handle real-time messaging events
   const handleNewMessage = useCallback((message: Message) => {
@@ -31,7 +36,29 @@ const Messages: React.FC = () => {
         ? { ...room, last_message: message, last_message_at: message.created_at }
         : room
     ));
-  }, [selectedRoom]);
+
+    // Show notification for new messages (only if not from current user and not in current room)
+    if (message.sender_id !== user?.id && (!selectedRoom || message.chat_room_id !== selectedRoom.id)) {
+      const senderName = message.sender?.first_name 
+        ? `${message.sender.first_name} ${message.sender.last_name || ''}`.trim()
+        : message.sender?.username || 'Someone';
+      
+      showNotification(
+        `New message from ${senderName}`,
+        message.content,
+        {
+          onClick: () => {
+            // Focus window and navigate to the chat room
+            window.focus();
+            const room = chatRooms.find(r => r.id === message.chat_room_id);
+            if (room) {
+              setSelectedRoom(room);
+            }
+          }
+        }
+      );
+    }
+  }, [selectedRoom, user?.id, showNotification, chatRooms]);
 
   const handleNewChatRoom = useCallback((chatRoom: ChatRoom) => {
     setChatRooms(prev => [chatRoom, ...prev]);
@@ -205,7 +232,18 @@ const Messages: React.FC = () => {
   }
 
   return (
-    <div className="flex h-full bg-white rounded-lg shadow">
+    <>
+      {/* Video Call Overlay */}
+      {isInCall && currentCall && (
+        <VideoCall
+          roomId={currentCall.room_id}
+          callType={currentCall.call_type}
+          onEndCall={endCall}
+          chatRoomId={currentCall.chat_room_id}
+        />
+      )}
+      
+      <div className="flex h-full bg-white rounded-lg shadow">
       {/* Chat Rooms Sidebar */}
       <div className="w-1/3 border-r border-gray-200 flex flex-col">
         {/* Header */}
@@ -338,15 +376,17 @@ const Messages: React.FC = () => {
                 
                 <div className="flex items-center space-x-2">
                   <button 
-                    onClick={() => alert('Audio call feature coming soon!')}
-                    className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+                    onClick={() => startCall(selectedRoom.id, 'audio')}
+                    disabled={isInCall}
+                    className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     title="Start audio call"
                   >
                     <Phone className="h-5 w-5" />
                   </button>
                   <button 
-                    onClick={() => alert('Video call feature coming soon!')}
-                    className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+                    onClick={() => startCall(selectedRoom.id, 'video')}
+                    disabled={isInCall}
+                    className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     title="Start video call"
                   >
                     <Video className="h-5 w-5" />
@@ -477,7 +517,8 @@ const Messages: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 };
 

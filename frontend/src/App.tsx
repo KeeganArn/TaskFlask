@@ -1,7 +1,8 @@
-import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { SocketProvider } from './contexts/SocketContext';
+import { NotificationProvider } from './contexts/NotificationContext';
+import { CallProvider } from './contexts/CallContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 import Login from './pages/Login';
@@ -13,13 +14,21 @@ import TeamManagement from './pages/TeamManagement';
 import Profile from './pages/Profile';
 import OrganizationSettings from './pages/OrganizationSettings';
 import Messages from './pages/Messages';
+import Billing from './pages/Billing';
+import TimeTracking from './pages/TimeTracking';
+import Analytics from './pages/Analytics';
+import Documents from './pages/Documents';
 import Unauthorized from './pages/Unauthorized';
+import { ThemeProvider } from './contexts/ThemeContext';
 
 function App() {
   return (
-    <AuthProvider>
-      <SocketProvider>
-        <Router>
+    <ThemeProvider>
+      <AuthProvider>
+        <NotificationProvider>
+          <CallProvider>
+            <SocketProvider>
+              <Router>
         <Routes>
           {/* Public Routes */}
           <Route path="/login" element={<Login />} />
@@ -50,9 +59,17 @@ function App() {
                   
                   <Route path="/profile" element={<Profile />} />
                   
-                  <Route path="/settings" element={<OrganizationSettings />} />
-                  
-                  <Route path="/messages" element={<Messages />} />
+                                      <Route path="/settings" element={<OrganizationSettings />} />
+                    
+                    <Route path="/billing" element={<Billing />} />
+                    
+                    <Route path="/time-tracking" element={<TimeTracking />} />
+                    
+                    <Route path="/analytics" element={<Analytics />} />
+                    
+                    <Route path="/documents" element={<Documents />} />
+                    
+                    <Route path="/messages" element={<Messages />} />
                   
                   {/* Catch all redirect */}
                   <Route path="*" element={<Navigate to="/dashboard" replace />} />
@@ -60,10 +77,13 @@ function App() {
               </Layout>
             </ProtectedRoute>
           } />
-        </Routes>
-        </Router>
-      </SocketProvider>
-    </AuthProvider>
+                  </Routes>
+              </Router>
+            </SocketProvider>
+          </CallProvider>
+        </NotificationProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 

@@ -1,19 +1,19 @@
 import axios from 'axios';
-import {
+import { 
   AuthResponse,
   LoginRequest,
   RegisterRequest,
   InviteUserRequest,
-  Task,
-  Project,
+  Task, 
+  Project, 
   Organization,
   OrganizationMember,
   Role,
   Invitation,
   CreateProjectRequest,
   UpdateProjectRequest,
-  CreateTaskRequest,
-  UpdateTaskRequest,
+  CreateTaskRequest, 
+  UpdateTaskRequest, 
   CreateTimeEntryRequest,
   TaskFilters,
   ProjectStats,
@@ -344,6 +344,108 @@ export const messagesApi = {
       type: 'direct',
       participant_ids: [userId]
     }).then(res => res.data),
+};
+
+// Subscriptions API
+export const subscriptionsApi = {
+  getPlans: () => 
+    api.get('/subscriptions/plans').then(res => res.data),
+    
+  getCurrentSubscription: () => 
+    api.get('/subscriptions/current').then(res => res.data),
+    
+  getUsage: () => 
+    api.get('/subscriptions/usage').then(res => res.data),
+    
+  upgradePlan: (planSlug: string, billingCycle: 'monthly' | 'yearly' = 'monthly') => 
+    api.post('/subscriptions/upgrade', { plan_slug: planSlug, billing_cycle: billingCycle }).then(res => res.data),
+    
+  checkFeature: (feature: string) => 
+    api.get(`/subscriptions/features/${feature}`).then(res => res.data),
+    
+  getAllFeatures: () => 
+    api.get('/subscriptions/features').then(res => res.data),
+};
+
+// Documents API
+export const documentsApi = {
+  list: () => api.get('/documents').then(res => res.data),
+  create: (data: { title: string; content?: string; visibility?: 'org' | 'private' }) =>
+    api.post('/documents', data).then(res => res.data),
+  get: (id: number) => api.get(`/documents/${id}`).then(res => res.data),
+  update: (id: number, data: { title?: string; content?: string; visibility?: 'org' | 'private' }) =>
+    api.put(`/documents/${id}`, data).then(res => res.data),
+  remove: (id: number) => api.delete(`/documents/${id}`).then(res => res.data),
+  startView: (id: number) => api.post(`/documents/${id}/view/start`).then(res => res.data),
+  heartbeat: (sessionId: number) => api.post(`/documents/views/${sessionId}/heartbeat`).then(res => res.data),
+  endView: (sessionId: number) => api.post(`/documents/views/${sessionId}/end`).then(res => res.data),
+  activeViews: () => api.get('/documents/views/active').then(res => res.data)
+};
+
+// Calls API
+export const callsApi = {
+  initiateCall: (chatRoomId: number, callType: 'audio' | 'video', participantIds: number[] = []) =>
+    api.post('/calls/initiate', {
+      chat_room_id: chatRoomId,
+      call_type: callType,
+      participant_ids: participantIds
+    }).then(res => res.data),
+
+  joinCall: (roomId: string) =>
+    api.post(`/calls/${roomId}/join`).then(res => res.data),
+
+  leaveCall: (roomId: string) =>
+    api.post(`/calls/${roomId}/leave`).then(res => res.data),
+
+  getParticipants: (roomId: string) =>
+    api.get(`/calls/${roomId}/participants`).then(res => res.data),
+
+  updateParticipantSettings: (roomId: string, settings: any) =>
+    api.put(`/calls/${roomId}/participant/settings`, settings).then(res => res.data),
+};
+
+// Time Tracking API
+export const timeTrackingApi = {
+  getSessions: (params?: { task_id?: number; start_date?: string; end_date?: string; limit?: number; offset?: number }) =>
+    api.get('/time-tracking/sessions', { params }).then(res => res.data),
+
+  startSession: (taskId: number, description?: string, isBillable?: boolean, hourlyRate?: number) =>
+    api.post('/time-tracking/sessions', {
+      task_id: taskId,
+      description,
+      is_billable: isBillable,
+      hourly_rate: hourlyRate
+    }).then(res => res.data),
+
+  stopSession: (sessionId: number) =>
+    api.put(`/time-tracking/sessions/${sessionId}/stop`).then(res => res.data),
+
+  getActiveSession: () =>
+    api.get('/time-tracking/active').then(res => res.data),
+
+  getStats: (period?: 'today' | 'week' | 'month') =>
+    api.get('/time-tracking/stats', { params: { period } }).then(res => res.data),
+
+  updateSession: (sessionId: number, data: { description?: string; is_billable?: boolean; hourly_rate?: number }) =>
+    api.put(`/time-tracking/sessions/${sessionId}`, data).then(res => res.data),
+
+  deleteSession: (sessionId: number) =>
+    api.delete(`/time-tracking/sessions/${sessionId}`).then(res => res.data),
+};
+
+// Analytics API
+export const analyticsApi = {
+  getOverview: (period?: number) =>
+    api.get('/analytics/overview', { params: { period } }).then(res => res.data),
+
+  getTimeTrackingAnalytics: (period?: number) =>
+    api.get('/analytics/time-tracking', { params: { period } }).then(res => res.data),
+
+  getTaskAnalytics: (period?: number) =>
+    api.get('/analytics/tasks', { params: { period } }).then(res => res.data),
+
+  getProjectAnalytics: () =>
+    api.get('/analytics/projects').then(res => res.data),
 };
 
 export default api;

@@ -322,6 +322,92 @@ export const optionalAuth = async (req: AuthenticatedRequest, res: Response, nex
   }
 };
 
+/**
+ * Feature access middleware - checks if organization has access to a specific feature
+ */
+export const requireFeature = (feature: string) => {
+  return async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user || !req.user.organization_id) {
+        return res.status(401).json({ message: 'Authentication required' });
+      }
+
+      const organizationId = req.user.organization_id;
+
+      // Base Pro features to inherit for Enterprise
+      const PRO_FEATURES = [
+        'time_tracking',
+        'custom_branding',
+        'analytics',
+        'priority_support',
+        'advanced_permissions'
+      ];
+
+      const augmentFeatures = (planSlug: string, rawFeatures: any): string[] => {
+        let list: string[] = [];
+        try {
+          if (Array.isArray(rawFeatures)) list = rawFeatures as string[];
+          else if (typeof rawFeatures === 'string') list = JSON.parse(rawFeatures || '[]');
+        } catch {
+          list = [];
+        }
+        if (planSlug === 'enterprise') {
+          return Array.from(new Set<string>([...list, ...PRO_FEATURES]));
+        }
+        return list;
+      };
+
+      // Check active subscription first
+      const [subscription] = await pool.execute(`
+        SELECT sp.features, sp.name as plan_name, sp.slug as plan_slug
+        FROM organization_subscriptions os
+        JOIN subscription_plans sp ON os.plan_id = sp.id
+        WHERE os.organization_id = ? AND os.status IN ('active', 'trialing')
+        ORDER BY os.created_at DESC
+        LIMIT 1
+      `, [organizationId]);
+
+      let currentPlanName = 'Unknown';
+      let featureList: string[] = [];
+
+      if ((subscription as any[]).length > 0) {
+        const sub = (subscription as any[])[0];
+        currentPlanName = sub.plan_name;
+        featureList = augmentFeatures(sub.plan_slug, sub.features);
+      } else {
+        // Fallback to organization's subscription_plan column
+        const [orgPlanRows] = await pool.execute(
+          `SELECT o.subscription_plan as plan_slug, sp.features, sp.name as plan_name
+           FROM organizations o
+           LEFT JOIN subscription_plans sp ON sp.slug = o.subscription_plan
+           WHERE o.id = ?
+           LIMIT 1`,
+          [organizationId]
+        );
+        if ((orgPlanRows as any[]).length === 0) {
+          return res.status(403).json({ message: 'No subscription context found', feature_required: feature });
+        }
+        const row = (orgPlanRows as any[])[0];
+        currentPlanName = row.plan_name || row.plan_slug;
+        featureList = augmentFeatures(row.plan_slug, row.features || '[]');
+      }
+
+      if (!featureList.includes(feature)) {
+        return res.status(403).json({ 
+          message: `Feature '${feature}' not available in your current plan`,
+          current_plan: currentPlanName,
+          feature_required: feature
+        });
+      }
+
+      next();
+    } catch (error) {
+      console.error('Feature access check error:', error);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+  };
+};
+
 export default {
   authenticate,
   hasPermission,
@@ -331,5 +417,6 @@ export default {
   requireProjectAccess,
   requireOrganizationAdmin,
   requireResourceOwnership,
+  requireFeature,
   optionalAuth
 };
