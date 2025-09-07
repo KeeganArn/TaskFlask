@@ -139,6 +139,19 @@ router.get('/members', authenticate, async (req: AuthenticatedRequest, res: Resp
     
     query += ' ORDER BY om.joined_at DESC';
     
+    // Enforce plan member limit on response (informational; invitations are controlled elsewhere)
+    const [planRows] = await pool.execute(
+      `SELECT sp.slug as plan_slug, sp.max_users
+       FROM organization_subscriptions os
+       JOIN subscription_plans sp ON os.plan_id = sp.id
+       WHERE os.organization_id = ? AND os.status IN ('active','trialing')
+       ORDER BY os.created_at DESC
+       LIMIT 1`,
+      [req.user!.organization_id]
+    );
+    const plan = (planRows as any[])[0]?.plan_slug || 'free';
+    const maxUsers = (planRows as any[])[0]?.max_users ?? 5;
+
     const [rows] = await pool.execute(query, params);
     
     const members = (rows as any[]).map(row => ({

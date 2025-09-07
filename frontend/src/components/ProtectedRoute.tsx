@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { subscriptionsApi } from '../services/api';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -9,6 +10,7 @@ interface ProtectedRouteProps {
   anyPermission?: string[]; // Require ANY permission
   adminOnly?: boolean;
   redirectTo?: string;
+  requiredPlanSlug?: 'pro' | 'enterprise';
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
@@ -17,13 +19,32 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   requiredPermissions,
   anyPermission,
   adminOnly = false,
-  redirectTo = '/login'
+  redirectTo = '/login',
+  requiredPlanSlug
 }) => {
   const { user, organization, hasPermission, isLoading } = useAuth();
   const location = useLocation();
+  const [planSlug, setPlanSlug] = useState<string | null>(null);
+  const [loadingPlan, setLoadingPlan] = useState<boolean>(!!requiredPlanSlug);
+
+  useEffect(() => {
+    if (!requiredPlanSlug) return;
+    let mounted = true;
+    (async () => {
+      try {
+        const sub = await subscriptionsApi.getCurrentSubscription();
+        if (mounted) setPlanSlug(sub?.plan_slug || 'free');
+      } catch {
+        if (mounted) setPlanSlug('free');
+      } finally {
+        if (mounted) setLoadingPlan(false);
+      }
+    })();
+    return () => { mounted = false; };
+  }, [requiredPlanSlug]);
 
   // Show loading spinner while checking auth
-  if (isLoading) {
+  if (isLoading || loadingPlan) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
@@ -44,6 +65,15 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
                    hasPermission('*');
     
     if (!isAdmin) {
+      return <Navigate to="/unauthorized" replace />;
+    }
+  }
+
+  // Check plan requirement (e.g., hide for Basic/free)
+  if (requiredPlanSlug) {
+    const current = planSlug || 'free';
+    const satisfies = requiredPlanSlug === 'pro' ? (current === 'pro' || current === 'enterprise') : (current === 'enterprise');
+    if (!satisfies) {
       return <Navigate to="/unauthorized" replace />;
     }
   }

@@ -41,6 +41,20 @@ const augmentFeatures = (planSlug: string, rawFeatures: any): string[] => {
  */
 router.get('/plans', async (req, res: Response) => {
   try {
+    // Ensure plans exist; seed defaults if table is empty
+    const [countRows] = await pool.execute(`SELECT COUNT(*) as cnt FROM subscription_plans`);
+    const total = (countRows as any[])[0]?.cnt ?? 0;
+    if (total === 0) {
+      await pool.execute(`
+        INSERT INTO subscription_plans 
+          (name, slug, price_monthly, price_yearly, max_users, max_organizations, max_storage_gb, features, is_active)
+        VALUES
+          ('Free', 'free', 0.00, 0.00, 5, 1, 1, '["basic_messaging","basic_tasks","basic_projects"]', TRUE),
+          ('Pro', 'pro', 15.00, 150.00, 50, 3, 10, '["time_tracking","custom_branding","analytics","priority_support","advanced_permissions"]', TRUE),
+          ('Enterprise', 'enterprise', 50.00, 500.00, NULL, NULL, 100, '["sso","audit_logs","api_access","custom_integrations","dedicated_support","white_labeling"]', TRUE)
+      `);
+    }
+
     const [plans] = await pool.execute(`
       SELECT id, name, slug, price_monthly, price_yearly, max_users, max_organizations, 
              max_storage_gb, features, is_active
@@ -52,6 +66,7 @@ router.get('/plans', async (req, res: Response) => {
     // Parse JSON fields safely
     const parsedPlans = (plans as any[]).map(plan => ({
       ...plan,
+      name: plan.slug === 'free' ? 'Basic' : plan.name,
       max_organizations: 1,
       features: augmentFeatures(plan.slug, plan.features)
     }));
@@ -89,30 +104,27 @@ router.get('/current', authenticate, async (req: AuthenticatedRequest, res: Resp
     `, [organizationId]);
 
     if ((subscription as any[]).length === 0) {
-      // No subscription found, create a free trial
+      // No subscription found: default to active Basic (free) with no trial
       const [freePlan] = await pool.execute(
         'SELECT * FROM subscription_plans WHERE slug = "free" LIMIT 1'
       );
 
       if ((freePlan as any[]).length > 0) {
         const plan = (freePlan as any[])[0];
-        const trialEnd = new Date();
-        trialEnd.setDate(trialEnd.getDate() + 14); // 14-day trial
 
         await pool.execute(`
           INSERT INTO organization_subscriptions 
-          (organization_id, plan_id, status, current_period_start, current_period_end, trial_end)
-          VALUES (?, ?, 'trialing', CURDATE(), ?, ?)
-        `, [organizationId, plan.id, trialEnd, trialEnd]);
+          (organization_id, plan_id, status, billing_cycle, current_period_start, current_period_end, trial_end)
+          VALUES (?, ?, 'active', 'monthly', CURDATE(), DATE_ADD(CURDATE(), INTERVAL 1 MONTH), NULL)
+        `, [organizationId, plan.id]);
 
         res.json({
           id: null,
           organization_id: organizationId,
           plan_id: plan.id,
-          status: 'trialing',
+          status: 'active',
           billing_cycle: 'monthly',
-          trial_end: trialEnd,
-          plan_name: plan.name,
+          plan_name: plan.slug === 'free' ? 'Basic' : plan.name,
           plan_slug: plan.slug,
           price_monthly: plan.price_monthly,
           price_yearly: plan.price_yearly,
@@ -128,6 +140,7 @@ router.get('/current', authenticate, async (req: AuthenticatedRequest, res: Resp
       const sub = (subscription as any[])[0];
       res.json({
         ...sub,
+        plan_name: sub.plan_slug === 'free' ? 'Basic' : sub.plan_name,
         max_organizations: 1,
         features: augmentFeatures(sub.plan_slug, sub.features)
       });
@@ -339,14 +352,14 @@ router.get('/features/:feature?', authenticate, async (req: AuthenticatedRequest
       res.json({ 
         hasAccess, 
         feature,
-        plan_name: sub.plan_name,
+        plan_name: sub.plan_slug === 'free' ? 'Basic' : sub.plan_name,
         plan_slug: sub.plan_slug
       });
     } else {
       // Return all features
       res.json({ 
         features, 
-        plan_name: sub.plan_name,
+        plan_name: sub.plan_slug === 'free' ? 'Basic' : sub.plan_name,
         plan_slug: sub.plan_slug
       });
     }

@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Eye, EyeOff, LogIn, Building2, AlertCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { LoginRequest } from '../types';
+import { clientAuthApi } from '../services/clientApi';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -22,6 +23,8 @@ const Login: React.FC = () => {
     slug: string;
     role: string;
   }> | null>(null);
+  const [isClient, setIsClient] = useState(false);
+  const [organizationSlug, setOrganizationSlug] = useState('');
 
   const from = location.state?.from?.pathname || '/dashboard';
 
@@ -30,6 +33,17 @@ const Login: React.FC = () => {
     setError(null);
     
     try {
+      if (isClient) {
+        if (!organizationSlug) {
+          setError('Organization slug is required for client login');
+          return;
+        }
+        const { token } = await clientAuthApi.login({ organization_slug: organizationSlug, email: formData.email, password: formData.password });
+        localStorage.setItem('clientToken', token);
+        navigate('/client', { replace: true });
+        return;
+      }
+
       const response = await login(formData);
       
       if (response.requireOrganizationSelection && response.organizations) {
@@ -165,6 +179,20 @@ const Login: React.FC = () => {
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <label className="flex items-center text-sm text-gray-700">
+                <input type="checkbox" className="mr-2" checked={isClient} onChange={(e) => setIsClient(e.target.checked)} />
+                I am a client
+              </label>
+              {isClient && (
+                <input
+                  className="ml-4 flex-1 border rounded px-3 py-2 text-sm"
+                  placeholder="Organization slug"
+                  value={organizationSlug}
+                  onChange={(e) => setOrganizationSlug(e.target.value)}
+                />
+              )}
+            </div>
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">
                 Email address

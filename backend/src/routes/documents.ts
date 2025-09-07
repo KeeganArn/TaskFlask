@@ -197,6 +197,10 @@ router.get('/views/active', authenticate, requireFeature('advanced_permissions')
 
     res.json(rows);
   } catch (error) {
+    // If the sessions table is missing (fresh DB), return empty list instead of 500
+    if ((error as any)?.code === 'ER_NO_SUCH_TABLE') {
+      return res.json([]);
+    }
     console.error('Error fetching active document views:', error);
     res.status(500).json({ message: 'Internal server error' });
   }

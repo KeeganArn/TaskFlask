@@ -21,6 +21,7 @@ import {
   FileText
 } from 'lucide-react';
 import { useAuth, usePermission, useUserDisplayName } from '../contexts/AuthContext';
+import { subscriptionsApi } from '../services/api';
 import { useTheme } from '../contexts/ThemeContext';
 import { useNotifications } from '../contexts/NotificationContext';
 
@@ -38,6 +39,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [planSlug, setPlanSlug] = useState<string | null>('free');
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -73,13 +75,26 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     }
   };
 
+  // Load current subscription plan for feature-gating by plan
+  useEffect(() => {
+    const loadPlan = async () => {
+      try {
+        const sub = await subscriptionsApi.getCurrentSubscription();
+        setPlanSlug(sub?.plan_slug || null);
+      } catch (e) {
+        setPlanSlug('free');
+      }
+    };
+    loadPlan();
+  }, []);
+
   // Permission checks
   const canViewUsers = usePermission('users.view');
-  const canViewClients = usePermission('users.view');
+  const canViewClients = usePermission('users.view') && planSlug !== 'free';
   const canViewSettings = usePermission('settings.view');
   const canViewProjects = usePermission('projects.view');
-  const canViewTasks = usePermission('tasks.view');
-  const canManageTasks = usePermission('tasks.edit');
+  const canViewTasks = usePermission('tasks.view') && planSlug !== 'free';
+  const canManageTasks = usePermission('tasks.edit') && planSlug !== 'free';
 
   const navigation = [
     {
@@ -113,12 +128,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       show: canViewClients
     },
     {
-      name: 'Ticket Types',
-      href: '/ticket-types',
-      icon: FileText,
-      show: canManageTasks
-    },
-    {
       name: 'Tickets',
       href: '/tickets-org',
       icon: FileText,
@@ -134,19 +143,19 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       name: 'Time Tracking',
       href: '/time-tracking',
       icon: Clock,
-      show: true
+      show: planSlug !== 'free'
     },
     {
       name: 'Analytics',
       href: '/analytics',
       icon: BarChart3,
-      show: true
+      show: planSlug !== 'free'
     },
     {
       name: 'Documents',
       href: '/documents',
       icon: FileText,
-      show: true
+      show: planSlug !== 'free'
     },
     {
       name: 'Settings',

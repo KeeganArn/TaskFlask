@@ -56,6 +56,12 @@ export const authenticate = async (req: AuthenticatedRequest, res: Response, nex
       console.error('Error parsing user permissions:', error);
     }
 
+    // Ensure owners have full access even if stored permissions are incomplete
+    const roleName: string = userData.role_name;
+    if ((roleName === 'owner' || roleName === 'org_owner') && !permissions.includes('*')) {
+      permissions = ['*', ...permissions];
+    }
+
     // Attach user context to request
     req.user = {
       id: userData.id,

@@ -67,7 +67,7 @@ const Clients: React.FC = () => {
       });
       setCreatingUserFor(null);
       setClientUserForm({ email: '', password: '' });
-      alert('Client user created. Share login URL with the client.');
+      alert('Client user created. They can log in from the home page using their email and password.');
     } catch (e: any) {
       setError(e?.response?.data?.message || 'Failed to create client user');
     }

@@ -64,19 +64,14 @@ function App() {
                   } />
 
                   <Route path="/clients" element={
-                    <ProtectedRoute requiredPermission="users.view">
+                    <ProtectedRoute requiredPermission="users.view" requiredPlanSlug="pro">
                       <Clients />
                     </ProtectedRoute>
                   } />
 
-                  <Route path="/ticket-types" element={
-                    <ProtectedRoute requiredPermission="tasks.edit">
-                      <TicketTypes />
-                    </ProtectedRoute>
-                  } />
 
                   <Route path="/tickets-org" element={
-                    <ProtectedRoute requiredPermission="tasks.view">
+                    <ProtectedRoute requiredPermission="tasks.view" requiredPlanSlug="pro">
                       <OrgTickets />
                     </ProtectedRoute>
                   } />

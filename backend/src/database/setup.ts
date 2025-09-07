@@ -16,10 +16,10 @@ const setupDatabase = async () => {
   const pool = new Pool(setupConfig);
   
   try {
-    // Create the flowbit database if it doesn't exist
+    // Create the taskflask database if it doesn't exist
     await pool.query(`
-      SELECT 'CREATE DATABASE flowbit'
-      WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'flowbit')
+      SELECT 'CREATE DATABASE taskflask'
+      WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'taskflask')
     `);
     
     console.log('Database setup completed');

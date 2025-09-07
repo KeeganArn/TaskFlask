@@ -175,7 +175,7 @@ POST /api/v2/auth/login
 DB_HOST=localhost
 DB_USER=root
 DB_PASSWORD=
-DB_NAME=flowbit
+DB_NAME=taskflask
 DB_PORT=3306
 
 # JWT

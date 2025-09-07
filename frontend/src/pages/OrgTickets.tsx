@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ticketsApi } from '../services/api';
+import { usePermission } from '../contexts/AuthContext';
 import { Link } from 'react-router-dom';
 
 interface TicketType { id: number; key_slug: string; display_name: string; }
@@ -14,6 +15,8 @@ interface Ticket {
 }
 
 const OrgTickets: React.FC = () => {
+  const canManageTypes = usePermission('tasks.edit');
+  const [typeForm, setTypeForm] = useState<{ key_slug: string; display_name: string; description?: string }>({ key_slug: '', display_name: '' });
   const [types, setTypes] = useState<TicketType[]>([]);
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(false);
@@ -53,6 +56,17 @@ const OrgTickets: React.FC = () => {
     }
   };
 
+  const createType = async () => {
+    if (!typeForm.key_slug || !typeForm.display_name) return;
+    try {
+      const created = await ticketsApi.createType(typeForm);
+      setTypes([created, ...types]);
+      setTypeForm({ key_slug: '', display_name: '' });
+    } catch (e: any) {
+      setError(e?.response?.data?.message || 'Failed to create ticket type');
+    }
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between">
@@ -79,6 +93,20 @@ const OrgTickets: React.FC = () => {
           <button className="px-4 py-2 text-sm rounded bg-primary-600 text-white" onClick={createTicket}>Create Ticket</button>
         </div>
       </div>
+
+      {canManageTypes && (
+        <div className="mt-6 bg-white shadow rounded-lg p-4">
+          <h2 className="text-lg font-semibold text-gray-900 mb-3">Manage Ticket Types</h2>
+          <div className="grid grid-cols-3 gap-2">
+            <input className="border rounded px-3 py-2" placeholder="Key (e.g., bug)" value={typeForm.key_slug} onChange={e => setTypeForm({ ...typeForm, key_slug: e.target.value })} />
+            <input className="border rounded px-3 py-2" placeholder="Display name" value={typeForm.display_name} onChange={e => setTypeForm({ ...typeForm, display_name: e.target.value })} />
+            <input className="border rounded px-3 py-2" placeholder="Description (optional)" value={typeForm.description || ''} onChange={e => setTypeForm({ ...typeForm, description: e.target.value })} />
+          </div>
+          <div className="mt-3">
+            <button className="px-4 py-2 text-sm rounded bg-primary-600 text-white" onClick={createType}>Create Type</button>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="mt-6 text-gray-500">Loading...</div>
