@@ -18,6 +18,12 @@ import Billing from './pages/Billing';
 import TimeTracking from './pages/TimeTracking';
 import Analytics from './pages/Analytics';
 import Documents from './pages/Documents';
+import Clients from './pages/Clients';
+import TicketTypes from './pages/TicketTypes';
+import OrgTickets from './pages/OrgTickets';
+import ClientLogin from './pages/ClientLogin';
+import ClientPortal from './pages/ClientPortal';
+import OrgTicketDetail from './pages/OrgTicketDetail';
 import Unauthorized from './pages/Unauthorized';
 import { ThemeProvider } from './contexts/ThemeContext';
 
@@ -33,6 +39,8 @@ function App() {
           {/* Public Routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/client-login" element={<ClientLogin />} />
+          <Route path="/client" element={<ClientPortal />} />
           <Route path="/unauthorized" element={<Unauthorized />} />
           
           {/* Protected Routes */}
@@ -52,6 +60,29 @@ function App() {
                   <Route path="/tasks" element={
                     <ProtectedRoute requiredPermission="tasks.view">
                       <Tasks />
+                    </ProtectedRoute>
+                  } />
+
+                  <Route path="/clients" element={
+                    <ProtectedRoute requiredPermission="users.view">
+                      <Clients />
+                    </ProtectedRoute>
+                  } />
+
+                  <Route path="/ticket-types" element={
+                    <ProtectedRoute requiredPermission="tasks.edit">
+                      <TicketTypes />
+                    </ProtectedRoute>
+                  } />
+
+                  <Route path="/tickets-org" element={
+                    <ProtectedRoute requiredPermission="tasks.view">
+                      <OrgTickets />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/tickets-org/:id" element={
+                    <ProtectedRoute requiredPermission="tasks.view">
+                      <OrgTicketDetail />
                     </ProtectedRoute>
                   } />
                   

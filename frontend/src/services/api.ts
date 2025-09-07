@@ -449,3 +449,39 @@ export const analyticsApi = {
 };
 
 export default api;
+
+// Clients & Tickets APIs
+export const clientsApi = {
+  list: () => api.get('/clients').then(res => res.data),
+  create: (data: { name: string; email: string; phone?: string; company?: string }) =>
+    api.post('/clients', data).then(res => res.data),
+  update: (id: number, data: Partial<{ name: string; email: string; phone?: string; company?: string; status?: 'active' | 'inactive' }>) =>
+    api.put(`/clients/${id}`, data).then(res => res.data),
+  remove: (id: number) => api.delete(`/clients/${id}`).then(res => res.data),
+  createUser: (clientId: number, data: { email: string; password_hash: string; first_name?: string; last_name?: string }) =>
+    api.post(`/clients/${clientId}/users`, data).then(res => res.data),
+  // helper to hash on frontend for now (avoid sending raw password to server's route expecting hash)
+  hashPassword: async (password: string): Promise<string> => {
+    // Lightweight hash emulation; in production, create a dedicated endpoint to create client user with raw password
+    const { default: bcrypt } = await import('bcryptjs');
+    const salt = await bcrypt.genSalt(10);
+    return bcrypt.hash(password, salt);
+  }
+};
+
+export const ticketsApi = {
+  listTypes: () => api.get('/tickets/types').then(res => res.data),
+  createType: (data: { key_slug: string; display_name: string; description?: string }) =>
+    api.post('/tickets/types', data).then(res => res.data),
+  updateType: (id: number, data: Partial<{ key_slug: string; display_name: string; description?: string; is_active?: boolean }>) =>
+    api.put(`/tickets/types/${id}`, data).then(res => res.data),
+
+  list: () => api.get('/tickets').then(res => res.data),
+  create: (data: { ticket_type_id: number; title: string; description?: string; priority?: string; assigned_user_id?: number }) =>
+    api.post('/tickets', data).then(res => res.data),
+  update: (id: number, data: Partial<{ title: string; description?: string; status?: string; priority?: string; assigned_user_id?: number }>) =>
+    api.put(`/tickets/${id}`, data).then(res => res.data),
+  addComment: (id: number, comment: string) =>
+    api.post(`/tickets/${id}/comments`, { comment }).then(res => res.data),
+  getById: (id: number) => api.get(`/tickets/${id}`).then(res => res.data),
+};

@@ -205,11 +205,12 @@ export interface UpdateTaskRequest {
 // Extended request types with user context
 export interface AuthenticatedRequest<P = any, ResBody = any, ReqBody = any> extends Request<P, ResBody, ReqBody> {
   user?: {
-    userId: number;
+    id: number;
     email: string;
-    organizationId: number;
-    roleId: number;
+    organization_id: number;
     permissions: string[];
+    role: Role;
+    membership: OrganizationMember;
   };
 }
 

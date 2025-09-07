@@ -578,4 +578,127 @@ CREATE INDEX idx_support_status ON support_tickets(status);
 ALTER TABLE support_tickets ADD FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
 ALTER TABLE support_tickets ADD FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
 
+-- Clients (external customers managed by organizations)
+CREATE TABLE clients (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  organization_id INT NOT NULL,
+  name VARCHAR(150) NOT NULL,
+  email VARCHAR(150) NOT NULL,
+  phone VARCHAR(30) NULL,
+  company VARCHAR(150) NULL,
+  status ENUM('active', 'inactive') DEFAULT 'active',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY unique_client_email_per_org (organization_id, email)
+);
+
+-- Client user accounts (login identities for clients)
+CREATE TABLE client_users (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  client_id INT NOT NULL,
+  organization_id INT NOT NULL,
+  email VARCHAR(150) NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  first_name VARCHAR(50) NULL,
+  last_name VARCHAR(50) NULL,
+  last_login TIMESTAMP NULL,
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY unique_client_user_email (organization_id, email)
+);
+
+-- Ticket types per organization (plan-limited)
+CREATE TABLE ticket_types (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  organization_id INT NOT NULL,
+  key_slug VARCHAR(50) NOT NULL,
+  display_name VARCHAR(100) NOT NULL,
+  description TEXT,
+  is_active BOOLEAN DEFAULT TRUE,
+  created_by INT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY unique_ticket_type_key (organization_id, key_slug)
+);
+
+-- Tickets (can be created by org users or client users)
+CREATE TABLE tickets (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  organization_id INT NOT NULL,
+  ticket_type_id INT NOT NULL,
+  title VARCHAR(200) NOT NULL,
+  description TEXT,
+  status ENUM('open', 'in_progress', 'resolved', 'closed') DEFAULT 'open',
+  priority ENUM('low', 'medium', 'high', 'urgent') DEFAULT 'medium',
+  created_by_user_id INT NULL,
+  created_by_client_user_id INT NULL,
+  assigned_user_id INT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Ticket comments (by org users or client users)
+CREATE TABLE ticket_comments (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  ticket_id INT NOT NULL,
+  author_user_id INT NULL,
+  author_client_user_id INT NULL,
+  comment TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Indexes for clients/tickets
+CREATE INDEX idx_clients_org ON clients(organization_id);
+CREATE INDEX idx_client_users_org ON client_users(organization_id);
+CREATE INDEX idx_client_users_client ON client_users(client_id);
+CREATE INDEX idx_ticket_types_org ON ticket_types(organization_id);
+CREATE INDEX idx_tickets_org ON tickets(organization_id);
+CREATE INDEX idx_tickets_type ON tickets(ticket_type_id);
+CREATE INDEX idx_tickets_status ON tickets(status);
+CREATE INDEX idx_tickets_priority ON tickets(priority);
+CREATE INDEX idx_ticket_comments_ticket ON ticket_comments(ticket_id);
+
+-- Foreign keys for clients/tickets
+ALTER TABLE clients ADD FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
+ALTER TABLE client_users ADD FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE;
+ALTER TABLE client_users ADD FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
+ALTER TABLE ticket_types ADD FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
+ALTER TABLE ticket_types ADD FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE tickets ADD FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
+ALTER TABLE tickets ADD FOREIGN KEY (ticket_type_id) REFERENCES ticket_types(id) ON DELETE RESTRICT;
+ALTER TABLE tickets ADD FOREIGN KEY (created_by_user_id) REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE tickets ADD FOREIGN KEY (created_by_client_user_id) REFERENCES client_users(id) ON DELETE SET NULL;
+ALTER TABLE tickets ADD FOREIGN KEY (assigned_user_id) REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE ticket_comments ADD FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE;
+ALTER TABLE ticket_comments ADD FOREIGN KEY (author_user_id) REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE ticket_comments ADD FOREIGN KEY (author_client_user_id) REFERENCES client_users(id) ON DELETE SET NULL;
+
 -- Schema complete - ready for copy-paste execution!
+
+-- Extensions for tickets: attachments, labels, SLA, default assignee per type
+ALTER TABLE ticket_types ADD COLUMN IF NOT EXISTS default_assignee_id INT NULL;
+ALTER TABLE ticket_types ADD FOREIGN KEY (default_assignee_id) REFERENCES users(id) ON DELETE SET NULL;
+
+ALTER TABLE tickets 
+  ADD COLUMN IF NOT EXISTS labels JSON DEFAULT '[]',
+  ADD COLUMN IF NOT EXISTS sla_minutes INT NULL,
+  ADD COLUMN IF NOT EXISTS due_at TIMESTAMP NULL;
+
+CREATE TABLE IF NOT EXISTS ticket_attachments (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  ticket_id INT NOT NULL,
+  comment_id INT NULL,
+  url VARCHAR(1000) NOT NULL,
+  file_name VARCHAR(255) NOT NULL,
+  file_size INT NULL,
+  created_by_user_id INT NULL,
+  created_by_client_user_id INT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE,
+  FOREIGN KEY (comment_id) REFERENCES ticket_comments(id) ON DELETE SET NULL,
+  FOREIGN KEY (created_by_user_id) REFERENCES users(id) ON DELETE SET NULL,
+  FOREIGN KEY (created_by_client_user_id) REFERENCES client_users(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_ticket_attachments_ticket ON ticket_attachments(ticket_id);

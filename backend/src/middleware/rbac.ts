@@ -408,6 +408,55 @@ export const requireFeature = (feature: string) => {
   };
 };
 
+/**
+ * Get organization's current plan slug ('free' | 'pro' | 'enterprise' | etc.)
+ */
+export const getOrganizationPlanSlug = async (organizationId: number): Promise<string> => {
+  // Prefer active subscription
+  const [subscription] = await pool.execute(`
+    SELECT sp.slug as plan_slug
+    FROM organization_subscriptions os
+    JOIN subscription_plans sp ON os.plan_id = sp.id
+    WHERE os.organization_id = ? AND os.status IN ('active', 'trialing')
+    ORDER BY os.created_at DESC
+    LIMIT 1
+  `, [organizationId]);
+
+  if ((subscription as any[]).length > 0) {
+    return (subscription as any[])[0].plan_slug;
+  }
+
+  const [orgRows] = await pool.execute(
+    'SELECT subscription_plan as plan_slug FROM organizations WHERE id = ? LIMIT 1',
+    [organizationId]
+  );
+  if ((orgRows as any[]).length > 0) {
+    return (orgRows as any[])[0].plan_slug || 'free';
+  }
+  return 'free';
+};
+
+/**
+ * Require organization to be on one of the specified plans
+ */
+export const requirePlanIn = (allowedPlans: string[]) => {
+  return async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: 'Authentication required' });
+      }
+      const plan = await getOrganizationPlanSlug(req.user.organization_id);
+      if (!allowedPlans.includes(plan)) {
+        return res.status(403).json({ message: 'Your plan does not include this feature', current_plan: plan, allowed_plans: allowedPlans });
+      }
+      next();
+    } catch (error) {
+      console.error('Plan check error:', error);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+  };
+};
+
 export default {
   authenticate,
   hasPermission,
@@ -418,5 +467,7 @@ export default {
   requireOrganizationAdmin,
   requireResourceOwnership,
   requireFeature,
+  getOrganizationPlanSlug,
+  requirePlanIn,
   optionalAuth
 };

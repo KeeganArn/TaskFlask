@@ -20,6 +20,9 @@ import brandingRouter from './routes/branding';
 import auditLogsRouter from './routes/auditLogs';
 import apiKeysRouter from './routes/apiKeys';
 import supportRouter from './routes/support';
+import clientsRouter from './routes/clients';
+import ticketsRouter from './routes/tickets';
+import clientAuthRouter from './routes/clientAuth';
 
 const app = express();
 const server = createServer(app);
@@ -59,6 +62,9 @@ app.use('/api/branding', brandingRouter);
 app.use('/api/audit-logs', auditLogsRouter);
 app.use('/api/api-keys', apiKeysRouter);
 app.use('/api/support', supportRouter);
+app.use('/api/clients', clientsRouter);
+app.use('/api/tickets', ticketsRouter);
+app.use('/api/client-auth', clientAuthRouter);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -126,6 +132,23 @@ app.get('/api/docs', (req, res) => {
         'POST /api/tasks/:id/comments': 'Add task comment',
         'POST /api/tasks/:id/time': 'Log time for task',
         'GET /api/tasks/overdue': 'Get overdue tasks'
+      },
+      clients: {
+        'GET /api/clients': 'List organization clients',
+        'POST /api/clients': 'Create client',
+        'PUT /api/clients/:id': 'Update client',
+        'DELETE /api/clients/:id': 'Delete client',
+        'POST /api/clients/:id/users': 'Create client login'
+      },
+      tickets: {
+        'GET /api/tickets/types': 'List ticket types',
+        'POST /api/tickets/types': 'Create ticket type (plan-limited)',
+        'POST /api/tickets/types/seed': 'Seed default ticket types per plan',
+        'GET /api/tickets': 'List tickets',
+        'POST /api/tickets': 'Create ticket (org user)',
+        'PUT /api/tickets/:id': 'Update ticket',
+        'POST /api/tickets/:id/comments': 'Add ticket comment',
+        'POST /api/tickets/client': 'Client creates ticket (client JWT)'
       }
     },
     permissions: {

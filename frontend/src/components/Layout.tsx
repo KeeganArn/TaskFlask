@@ -75,9 +75,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   // Permission checks
   const canViewUsers = usePermission('users.view');
+  const canViewClients = usePermission('users.view');
   const canViewSettings = usePermission('settings.view');
   const canViewProjects = usePermission('projects.view');
   const canViewTasks = usePermission('tasks.view');
+  const canManageTasks = usePermission('tasks.edit');
 
   const navigation = [
     {
@@ -103,6 +105,24 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       href: '/team',
       icon: Users,
       show: canViewUsers
+    },
+    {
+      name: 'Clients',
+      href: '/clients',
+      icon: Users,
+      show: canViewClients
+    },
+    {
+      name: 'Ticket Types',
+      href: '/ticket-types',
+      icon: FileText,
+      show: canManageTasks
+    },
+    {
+      name: 'Tickets',
+      href: '/tickets-org',
+      icon: FileText,
+      show: canViewTasks
     },
     {
       name: 'Messages',
