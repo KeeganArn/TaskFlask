@@ -77,4 +77,26 @@ router.put('/', authenticate, requireFeature('custom_branding'), requireOrganiza
 
 export default router;
 
+// Public client portal branding by organization slug
+router.get('/public/:slug', async (req: any, res: Response) => {
+  try {
+    const { slug } = req.params;
+    const [org] = await pool.execute('SELECT id, name FROM organizations WHERE slug = ? LIMIT 1', [slug]);
+    if ((org as any[]).length === 0) return res.status(404).json({ message: 'Organization not found' });
+    const orgId = (org as any[])[0].id;
+    const [rows] = await pool.execute('SELECT logo_url, primary_color, secondary_color, accent_color, white_label_enabled FROM organization_branding WHERE organization_id = ? LIMIT 1', [orgId]);
+    const branding = (rows as any[])[0] || {
+      logo_url: null,
+      primary_color: '#3B82F6',
+      secondary_color: '#1E40AF',
+      accent_color: '#F59E0B',
+      white_label_enabled: false
+    };
+    res.json({ organization: { id: orgId, name: (org as any[])[0].name, slug }, branding });
+  } catch (error) {
+    console.error('Public branding error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 

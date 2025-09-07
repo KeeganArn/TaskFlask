@@ -157,6 +157,36 @@ router.get('/', authenticate, requireAnyPermission(['tasks.view', 'tickets.view'
   }
 });
 
+// Export tickets to CSV
+router.get('/export/csv', authenticate, requireAnyPermission(['tasks.view', 'tickets.view' as any]), async (req: any, res) => {
+  try {
+    const { status, priority, type_id, search, label } = req.query as any;
+    const conditions = ['t.organization_id = ?'];
+    const params: any[] = [req.user!.organization_id];
+    if (status) { conditions.push('t.status = ?'); params.push(status); }
+    if (priority) { conditions.push('t.priority = ?'); params.push(priority); }
+    if (type_id) { conditions.push('t.ticket_type_id = ?'); params.push(type_id); }
+    if (search) { conditions.push('(t.title LIKE ? OR t.description LIKE ?)'); params.push(`%${search}%`, `%${search}%`); }
+    if (label) { conditions.push('JSON_CONTAINS(t.labels, JSON_QUOTE(?))'); params.push(label); }
+    const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
+    const [rows] = await pool.execute(
+      `SELECT t.id, tt.display_name as type, t.title, t.status, t.priority, t.created_at
+       FROM tickets t JOIN ticket_types tt ON t.ticket_type_id = tt.id
+       ${where}
+       ORDER BY t.created_at DESC`,
+      params
+    );
+    const header = 'id,type,title,status,priority,created_at\n';
+    const csv = (rows as any[]).map(r => [r.id, r.type, JSON.stringify(r.title), r.status, r.priority, new Date(r.created_at).toISOString()].join(',')).join('\n');
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="tickets.csv"');
+    res.send(header + csv);
+  } catch (error) {
+    console.error('Export CSV error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 // Get single ticket with comments
 router.get('/:id', authenticate, requireAnyPermission(['tasks.view', 'tickets.view' as any]), async (req: any, res) => {
   try {
@@ -202,7 +232,7 @@ router.get('/client', authenticateClient, async (req: ClientAuthenticatedRequest
 // Create ticket (org user)
 router.post('/', authenticate, requireAnyPermission(['tasks.create', 'tickets.create' as any]), async (req: any, res) => {
   try {
-    const { ticket_type_id, title, description, priority, assigned_user_id } = req.body;
+    const { ticket_type_id, title, description, priority, assigned_user_id, sla_minutes } = req.body;
     if (!ticket_type_id || !title) return res.status(400).json({ message: 'ticket_type_id and title required' });
     // Default assignee from type if not provided
     let assignedId = assigned_user_id || null;
@@ -211,9 +241,9 @@ router.post('/', authenticate, requireAnyPermission(['tasks.create', 'tickets.cr
       if ((tt as any[]).length) assignedId = (tt as any[])[0].default_assignee_id || null;
     }
     const [result] = await pool.execute(
-      `INSERT INTO tickets (organization_id, ticket_type_id, title, description, priority, created_by_user_id, assigned_user_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [req.user!.organization_id, ticket_type_id, title, description || null, priority || 'medium', req.user!.id, assignedId]
+      `INSERT INTO tickets (organization_id, ticket_type_id, title, description, priority, created_by_user_id, assigned_user_id, sla_minutes, due_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, CASE WHEN ? IS NOT NULL THEN DATE_ADD(NOW(), INTERVAL ? MINUTE) ELSE NULL END)`,
+      [req.user!.organization_id, ticket_type_id, title, description || null, priority || 'medium', req.user!.id, assignedId, typeof sla_minutes === 'number' ? sla_minutes : null, typeof sla_minutes === 'number' ? sla_minutes : null]
     );
     const id = (result as any).insertId;
     const [rows] = await pool.execute('SELECT * FROM tickets WHERE id = ?', [id]);
@@ -242,9 +272,9 @@ router.put('/:id', authenticate, requireAnyPermission(['tasks.edit', 'tickets.ed
         assigned_user_id = COALESCE(?, assigned_user_id),
         labels = COALESCE(?, labels),
         sla_minutes = COALESCE(?, sla_minutes),
-        due_at = COALESCE(?, due_at)
+        due_at = COALESCE(?, CASE WHEN ? IS NOT NULL THEN DATE_ADD(created_at, INTERVAL ? MINUTE) ELSE due_at)
        WHERE id = ? AND organization_id = ?`,
-      [title || null, description || null, status || null, priority || null, typeof assigned_user_id === 'number' ? assigned_user_id : null, labels ? JSON.stringify(labels) : null, typeof sla_minutes === 'number' ? sla_minutes : null, due_at || null, id, req.user!.organization_id]
+      [title || null, description || null, status || null, priority || null, typeof assigned_user_id === 'number' ? assigned_user_id : null, labels ? JSON.stringify(labels) : null, typeof sla_minutes === 'number' ? sla_minutes : null, due_at || null, typeof sla_minutes === 'number' ? sla_minutes : null, typeof sla_minutes === 'number' ? sla_minutes : null, id, req.user!.organization_id]
     );
     const [rows] = await pool.execute('SELECT * FROM tickets WHERE id = ? AND organization_id = ?', [id, req.user!.organization_id]);
     if ((rows as any[]).length === 0) return res.status(404).json({ message: 'Ticket not found' });
@@ -254,6 +284,75 @@ router.put('/:id', authenticate, requireAnyPermission(['tasks.edit', 'tickets.ed
     res.json(updated);
   } catch (error) {
     console.error('Update ticket error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Overdue tickets (SLA breach)
+router.get('/overdue/list', authenticate, requireAnyPermission(['tasks.view', 'tickets.view' as any]), async (req: any, res) => {
+  try {
+    const [rows] = await pool.execute(
+      `SELECT t.* FROM tickets t
+       WHERE t.organization_id = ? AND t.due_at IS NOT NULL AND t.due_at < NOW() AND t.status NOT IN ('resolved','closed')
+       ORDER BY t.due_at ASC`,
+      [req.user!.organization_id]
+    );
+    res.json(rows);
+  } catch (error) {
+    console.error('List overdue tickets error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Attachments
+router.post('/:id/attachments', authenticate, requireAnyPermission(['tickets.edit' as any, 'tasks.edit']), async (req: any, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { url, file_name, file_size, comment_id } = req.body;
+    if (!url || !file_name) return res.status(400).json({ message: 'url and file_name required' });
+    const [r] = await pool.execute(
+      `INSERT INTO ticket_attachments (ticket_id, comment_id, url, file_name, file_size, created_by_user_id)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [id, comment_id || null, url, file_name, file_size || null, req.user!.id]
+    );
+    const attId = (r as any).insertId;
+    const [rows] = await pool.execute('SELECT * FROM ticket_attachments WHERE id = ?', [attId]);
+    res.status(201).json((rows as any[])[0]);
+  } catch (error) {
+    console.error('Create attachment error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+router.get('/:id/attachments', authenticate, requireAnyPermission(['tickets.view' as any, 'tasks.view']), async (req: any, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const [rows] = await pool.execute('SELECT * FROM ticket_attachments WHERE ticket_id = ? ORDER BY created_at DESC', [id]);
+    res.json(rows);
+  } catch (error) {
+    console.error('List attachments error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Client attachments
+router.post('/:id/attachments/client', authenticateClient, async (req: ClientAuthenticatedRequest, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { url, file_name, file_size, comment_id } = req.body;
+    if (!url || !file_name) return res.status(400).json({ message: 'url and file_name required' });
+    const [tRows] = await pool.execute('SELECT id FROM tickets WHERE id = ? AND organization_id = ?', [id, req.client!.organization_id]);
+    if ((tRows as any[]).length === 0) return res.status(404).json({ message: 'Ticket not found' });
+    const [r] = await pool.execute(
+      `INSERT INTO ticket_attachments (ticket_id, comment_id, url, file_name, file_size, created_by_client_user_id)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [id, comment_id || null, url, file_name, file_size || null, req.client!.id]
+    );
+    const attId = (r as any).insertId;
+    const [rows] = await pool.execute('SELECT * FROM ticket_attachments WHERE id = ?', [attId]);
+    res.status(201).json((rows as any[])[0]);
+  } catch (error) {
+    console.error('Client create attachment error:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 });

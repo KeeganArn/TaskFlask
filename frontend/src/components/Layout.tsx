@@ -193,7 +193,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 {/* Logo */}
                 <img 
                   src="/logo.png" 
-                  alt="Flowbit" 
+                  alt="TaskFlask" 
                   className="h-10 w-auto"
                   onError={(e) => {
                     // Fallback to icon if logo doesn't exist
@@ -206,7 +206,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   <Building2 className="h-5 w-5 text-white" />
                 </div>
                 <div className="ml-3">
-                  <h1 className="text-lg font-semibold text-gray-900">Flowbit</h1>
+                  <h1 className="text-lg font-semibold text-gray-900">TaskFlask</h1>
                   <p className="text-xs text-gray-500">{organization?.name}</p>
                 </div>
               </div>
@@ -248,7 +248,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   {/* Logo */}
                   <img 
                     src="/logo.png" 
-                    alt="Flowbit" 
+                    alt="TaskFlask" 
                     className="h-10 w-auto"
                     onError={(e) => {
                       // Fallback to icon if logo doesn't exist
@@ -261,7 +261,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     <Building2 className="h-5 w-5 text-white" />
                   </div>
                   <div className="ml-3">
-                    <h1 className="text-lg font-semibold text-gray-900">Flowbit</h1>
+                    <h1 className="text-lg font-semibold text-gray-900">TaskFlask</h1>
                     <p className="text-xs text-gray-500 truncate">{organization?.name}</p>
                 </div>
                 </div>

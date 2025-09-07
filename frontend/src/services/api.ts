@@ -484,4 +484,12 @@ export const ticketsApi = {
   addComment: (id: number, comment: string) =>
     api.post(`/tickets/${id}/comments`, { comment }).then(res => res.data),
   getById: (id: number) => api.get(`/tickets/${id}`).then(res => res.data),
+  exportCsv: (filters?: Record<string, string | number>) => {
+    const params = new URLSearchParams();
+    if (filters) Object.entries(filters).forEach(([k,v]) => params.append(k, String(v)));
+    return api.get(`/tickets/export/csv?${params.toString()}`, { responseType: 'blob' }).then(res => res.data);
+  },
+  listAttachments: (id: number) => api.get(`/tickets/${id}/attachments`).then(res => res.data),
+  addAttachment: (id: number, data: { url: string; file_name: string; file_size?: number; comment_id?: number }) =>
+    api.post(`/tickets/${id}/attachments`, data).then(res => res.data),
 };

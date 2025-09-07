@@ -88,7 +88,7 @@ app.get('/api/health', (req, res) => {
 // API documentation endpoint
 app.get('/api/docs', (req, res) => {
   res.json({
-    title: 'Flowbit API Documentation',
+    title: 'TaskFlask API Documentation',
     version: '2.0',
     description: 'Multi-tenant task management API with role-based access control',
     endpoints: {
@@ -173,7 +173,7 @@ app.get('/api/docs', (req, res) => {
 // Default route
 app.get('/', (req, res) => {
   res.json({
-    message: 'Flowbit API v2.0',
+    message: 'TaskFlask API v2.0',
     documentation: '/api/docs',
     health: '/api/health',
     version: '2.0.0'
@@ -219,7 +219,7 @@ process.on('SIGINT', () => {
 
 // Start server
 server.listen(PORT, () => {
-  console.log(`🚀 Flowbit API v2.0 running on port ${PORT}`);
+  console.log(`🚀 TaskFlask API v2.0 running on port ${PORT}`);
   console.log(`📖 API Documentation: http://localhost:${PORT}/api/docs`);
   console.log(`💚 Health Check: http://localhost:${PORT}/api/health`);
   console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
