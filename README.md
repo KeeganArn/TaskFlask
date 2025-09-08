@@ -1,4 +1,4 @@
-# Flowbit Task Manager
+# TaskFlask Task Manager
 
 A full-stack task management application built with React, Node.js, TypeScript, and PostgreSQL.
 
@@ -33,7 +33,7 @@ A full-stack task management application built with React, Node.js, TypeScript, 
 ## Project Structure
 
 ```
-flowbit-task-manager/
+TaskFlask-task-manager/
 ├── database/
 │   └── schema.sql              # PostgreSQL database schema
 ├── backend/                     # Express.js backend
@@ -74,7 +74,7 @@ flowbit-task-manager/
    # Database Configuration
    DB_HOST=localhost
    DB_PORT=5432
-   DB_NAME=flowbit
+   DB_NAME=taskflask
    DB_USER=postgres
    DB_PASSWORD=your_password_here
    
@@ -94,7 +94,7 @@ flowbit-task-manager/
 
 4. **Create tables** using your `database/schema.sql` file:
    ```bash
-   psql -U postgres -d flowbit -f database/schema.sql
+   psql -U postgres -d taskflask -f database/schema.sql
    ```
 
 ### Installation
