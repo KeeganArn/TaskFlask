@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { LayoutDashboard, CheckSquare, FolderOpen, Clock, TrendingUp } from 'lucide-react';
+import { crmApi } from '../services/api';
 import { Task, Project } from '../types';
 import { tasksApi, projectsApi } from '../services/api';
 
@@ -7,14 +8,18 @@ const Dashboard: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deals, setDeals] = useState<any[]>([]);
+  const [activities, setActivities] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
     const fetchData = async () => {
       try {
-        const [tasksData, projectsData] = await Promise.all([
+        const [tasksData, projectsData, dealsData, activitiesData] = await Promise.all([
           tasksApi.getAll().catch(() => []),
-          projectsApi.getAll().catch(() => [])
+          projectsApi.getAll().catch(() => []),
+          crmApi.listDeals().catch(() => []),
+          crmApi.listActivities().catch(() => [])
         ]);
         
         console.log('Tasks API response:', tasksData);
@@ -22,6 +27,8 @@ const Dashboard: React.FC = () => {
         
         setTasks(tasksData || []);
         setProjects(projectsData || []);
+        setDeals(dealsData || []);
+        setActivities(activitiesData || []);
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
         setError('Failed to load dashboard data - using fallback data');
@@ -78,6 +85,12 @@ const Dashboard: React.FC = () => {
       color: 'bg-red-500',
     },
   ];
+
+  const pipelineByStage: Record<string, number> = (deals || []).reduce((acc: Record<string, number>, d: any) => {
+    const key = d.stage_name || 'Unstaged';
+    acc[key] = (acc[key] || 0) + (Number(d.amount) || 0);
+    return acc;
+  }, {});
 
   const recentTasks = safeTasks
     .sort((a, b) => new Date(b.updated_at || b.updatedAt).getTime() - new Date(a.updated_at || a.updatedAt).getTime())
@@ -210,6 +223,42 @@ const Dashboard: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* CRM widgets */}
+      {(deals.length > 0 || activities.length > 0) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="card">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Pipeline by Stage</h2>
+            {Object.keys(pipelineByStage).length === 0 ? (
+              <p className="text-gray-500">No deals yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {Object.entries(pipelineByStage).map(([stage, amount]) => (
+                  <div key={stage} className="flex items-center justify-between">
+                    <span className="text-sm text-gray-700">{stage}</span>
+                    <span className="text-sm font-semibold">${(amount as number).toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="card">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Activities</h2>
+            {activities.length === 0 ? (
+              <p className="text-gray-500">No recent activities.</p>
+            ) : (
+              <div className="space-y-3">
+                {activities.slice(0, 6).map((a: any) => (
+                  <div key={a.id} className="p-3 bg-gray-50 rounded">
+                    <div className="text-sm font-medium text-gray-900">{a.type}</div>
+                    <div className="text-sm text-gray-600">{a.subject || '-'}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

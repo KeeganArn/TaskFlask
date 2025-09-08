@@ -25,6 +25,10 @@ import ClientLogin from './pages/ClientLogin';
 import ClientPortal from './pages/ClientPortal';
 import OrgTicketDetail from './pages/OrgTicketDetail';
 import Unauthorized from './pages/Unauthorized';
+import CrmCompanies from './pages/CrmCompanies';
+import CrmContacts from './pages/CrmContacts';
+import CrmDeals from './pages/CrmDeals';
+import CrmActivities from './pages/CrmActivities';
 import { ThemeProvider } from './contexts/ThemeContext';
 
 function App() {
@@ -73,6 +77,28 @@ function App() {
                   <Route path="/tickets-org" element={
                     <ProtectedRoute requiredPermission="tasks.view" requiredPlanSlug="pro">
                       <OrgTickets />
+                    </ProtectedRoute>
+                  } />
+
+                  {/* CRM (Pro/Enterprise) */}
+                  <Route path="/crm/companies" element={
+                    <ProtectedRoute requiredPlanSlug="pro">
+                      <CrmCompanies />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/crm/contacts" element={
+                    <ProtectedRoute requiredPlanSlug="pro">
+                      <CrmContacts />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/crm/deals" element={
+                    <ProtectedRoute requiredPlanSlug="pro">
+                      <CrmDeals />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/crm/activities" element={
+                    <ProtectedRoute requiredPlanSlug="pro">
+                      <CrmActivities />
                     </ProtectedRoute>
                   } />
                   <Route path="/tickets-org/:id" element={

@@ -367,6 +367,34 @@ export const subscriptionsApi = {
     api.get('/subscriptions/features').then(res => res.data),
 };
 
+// CRM API
+export const crmApi = {
+  listCompanies: () => api.get('/crm/companies').then(res => res.data),
+  createCompany: (data: { name: string; domain?: string; phone?: string; website?: string; address?: string; tags?: string[]; owner_user_id?: number }) =>
+    api.post('/crm/companies', data).then(res => res.data),
+  updateCompany: (id: number, data: Partial<{ name: string; domain: string; phone: string; website: string; address: string; tags: string[]; owner_user_id: number }>) =>
+    api.put(`/crm/companies/${id}`, data).then(res => res.data),
+
+  listContacts: () => api.get('/crm/contacts').then(res => res.data),
+  createContact: (data: { company_id?: number; first_name?: string; last_name?: string; email?: string; phone?: string; title?: string; tags?: string[]; owner_user_id?: number }) =>
+    api.post('/crm/contacts', data).then(res => res.data),
+  updateContact: (id: number, data: Partial<{ company_id: number; first_name: string; last_name: string; email: string; phone: string; title: string; tags: string[]; owner_user_id: number }>) =>
+    api.put(`/crm/contacts/${id}`, data).then(res => res.data),
+
+  listStages: () => api.get('/crm/stages').then(res => res.data),
+  seedStages: () => api.post('/crm/stages/seed', {}).then(res => res.data),
+
+  listDeals: () => api.get('/crm/deals').then(res => res.data),
+  createDeal: (data: { company_id?: number; contact_id?: number; name: string; stage_id?: number; amount?: number; currency?: string; expected_close?: string; owner_user_id?: number; source?: string; notes?: string }) =>
+    api.post('/crm/deals', data).then(res => res.data),
+  updateDeal: (id: number, data: Partial<{ company_id: number; contact_id: number; name: string; stage_id: number; amount: number; currency: string; expected_close: string; owner_user_id: number; source: string; notes: string }>) =>
+    api.put(`/crm/deals/${id}`, data).then(res => res.data),
+
+  listActivities: () => api.get('/crm/activities').then(res => res.data),
+  createActivity: (data: { deal_id?: number; company_id?: number; contact_id?: number; type: 'call'|'meeting'|'email'|'task'|'note'; subject?: string; content?: string; due_at?: string }) =>
+    api.post('/crm/activities', data).then(res => res.data),
+};
+
 // Documents API
 export const documentsApi = {
   list: () => api.get('/documents').then(res => res.data),

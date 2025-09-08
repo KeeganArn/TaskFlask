@@ -23,6 +23,7 @@ import supportRouter from './routes/support';
 import clientsRouter from './routes/clients';
 import ticketsRouter from './routes/tickets';
 import clientAuthRouter from './routes/clientAuth';
+import crmRouter from './routes/crm';
 
 const app = express();
 const server = createServer(app);
@@ -65,6 +66,7 @@ app.use('/api/support', supportRouter);
 app.use('/api/clients', clientsRouter);
 app.use('/api/tickets', ticketsRouter);
 app.use('/api/client-auth', clientAuthRouter);
+app.use('/api/crm', crmRouter);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

@@ -95,6 +95,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const canViewProjects = usePermission('projects.view');
   const canViewTasks = usePermission('tasks.view') && planSlug !== 'free';
   const canManageTasks = usePermission('tasks.edit') && planSlug !== 'free';
+  const canUseCrm = planSlug !== 'free';
 
   const navigation = [
     {
@@ -102,6 +103,30 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       href: '/dashboard',
       icon: LayoutDashboard,
       show: true
+    },
+    {
+      name: 'Companies',
+      href: '/crm/companies',
+      icon: Building2,
+      show: canUseCrm
+    },
+    {
+      name: 'Contacts',
+      href: '/crm/contacts',
+      icon: Users,
+      show: canUseCrm
+    },
+    {
+      name: 'Deals',
+      href: '/crm/deals',
+      icon: FolderOpen,
+      show: canUseCrm
+    },
+    {
+      name: 'Activities',
+      href: '/crm/activities',
+      icon: Clock,
+      show: canUseCrm
     },
     {
       name: 'Projects',

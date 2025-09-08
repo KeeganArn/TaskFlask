@@ -702,3 +702,110 @@ CREATE TABLE IF NOT EXISTS ticket_attachments (
   FOREIGN KEY (created_by_client_user_id) REFERENCES client_users(id) ON DELETE SET NULL
 );
 CREATE INDEX IF NOT EXISTS idx_ticket_attachments_ticket ON ticket_attachments(ticket_id);
+
+-- =========================
+-- CRM: Companies, Contacts, Deals, Activities
+-- =========================
+
+CREATE TABLE IF NOT EXISTS companies (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  organization_id INT NOT NULL,
+  name VARCHAR(200) NOT NULL,
+  domain VARCHAR(200) NULL,
+  phone VARCHAR(30) NULL,
+  website VARCHAR(255) NULL,
+  address TEXT NULL,
+  tags JSON DEFAULT '[]',
+  owner_user_id INT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY unique_company_per_org (organization_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS contacts (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  organization_id INT NOT NULL,
+  company_id INT NULL,
+  first_name VARCHAR(100) NULL,
+  last_name VARCHAR(100) NULL,
+  email VARCHAR(150) NULL,
+  phone VARCHAR(30) NULL,
+  title VARCHAR(150) NULL,
+  tags JSON DEFAULT '[]',
+  owner_user_id INT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY unique_contact_email_per_org (organization_id, email)
+);
+
+CREATE TABLE IF NOT EXISTS deal_stages (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  organization_id INT NOT NULL,
+  name VARCHAR(100) NOT NULL,
+  probability INT DEFAULT 0,
+  position INT DEFAULT 0,
+  is_won BOOLEAN DEFAULT FALSE,
+  is_lost BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY unique_stage_per_org (organization_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS deals (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  organization_id INT NOT NULL,
+  company_id INT NULL,
+  contact_id INT NULL,
+  name VARCHAR(200) NOT NULL,
+  stage_id INT NULL,
+  amount DECIMAL(12,2) DEFAULT 0.00,
+  currency VARCHAR(10) DEFAULT 'USD',
+  expected_close DATE NULL,
+  owner_user_id INT NULL,
+  source VARCHAR(100) NULL,
+  notes TEXT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS activities (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  organization_id INT NOT NULL,
+  deal_id INT NULL,
+  company_id INT NULL,
+  contact_id INT NULL,
+  type ENUM('call','meeting','email','task','note') NOT NULL,
+  subject VARCHAR(255) NULL,
+  content TEXT NULL,
+  due_at DATETIME NULL,
+  completed_at DATETIME NULL,
+  created_by INT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- CRM Indexes
+CREATE INDEX IF NOT EXISTS idx_companies_org ON companies(organization_id);
+CREATE INDEX IF NOT EXISTS idx_contacts_org ON contacts(organization_id);
+CREATE INDEX IF NOT EXISTS idx_contacts_company ON contacts(company_id);
+CREATE INDEX IF NOT EXISTS idx_deals_org ON deals(organization_id);
+CREATE INDEX IF NOT EXISTS idx_deals_stage ON deals(stage_id);
+CREATE INDEX IF NOT EXISTS idx_activities_org ON activities(organization_id);
+
+-- CRM Foreign Keys
+ALTER TABLE companies ADD FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
+ALTER TABLE companies ADD FOREIGN KEY (owner_user_id) REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE contacts ADD FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
+ALTER TABLE contacts ADD FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE SET NULL;
+ALTER TABLE contacts ADD FOREIGN KEY (owner_user_id) REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE deal_stages ADD FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
+ALTER TABLE deals ADD FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
+ALTER TABLE deals ADD FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE SET NULL;
+ALTER TABLE deals ADD FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE SET NULL;
+ALTER TABLE deals ADD FOREIGN KEY (stage_id) REFERENCES deal_stages(id) ON DELETE SET NULL;
+ALTER TABLE deals ADD FOREIGN KEY (owner_user_id) REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE activities ADD FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
+ALTER TABLE activities ADD FOREIGN KEY (deal_id) REFERENCES deals(id) ON DELETE SET NULL;
+ALTER TABLE activities ADD FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE SET NULL;
+ALTER TABLE activities ADD FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE SET NULL;
+ALTER TABLE activities ADD FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE;
