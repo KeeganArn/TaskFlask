@@ -79,7 +79,13 @@ router.post('/', authenticate, async (req: AuthenticatedRequest<{}, {}, CreateTa
   try {
     console.log('Task creation - Request body:', req.body);
     console.log('Task creation - User:', req.user);
-    const { title, description, status, priority, dueDate, projectId } = req.body;
+    const body: any = req.body;
+    const title = body.title;
+    const description = body.description;
+    const status = body.status;
+    const priority = body.priority;
+    const dueDate = body.dueDate ?? body.due_date;
+    const projectId = body.projectId ?? body.project_id;
     
     if (!title || !description || !status || !priority || !dueDate || !projectId) {
       return res.status(400).json({ message: 'Missing required fields' });
@@ -136,20 +142,48 @@ router.post('/', authenticate, async (req: AuthenticatedRequest<{}, {}, CreateTa
 router.put('/:id', async (req: Request<{ id: string }, {}, UpdateTaskRequest>, res: Response) => {
   try {
     const { id } = req.params;
-    const { title, description, status, priority, dueDate, projectId } = req.body;
-    
-    const [result] = await pool.execute(
-      `UPDATE tasks 
-       SET title = COALESCE(?, title), 
-           description = COALESCE(?, description), 
-           status = COALESCE(?, status), 
-           priority = COALESCE(?, priority), 
-           due_date = COALESCE(?, due_date), 
-           project_id = COALESCE(?, project_id), 
-           updated_at = CURRENT_TIMESTAMP 
-       WHERE id = ?`,
-      [title, description, status, priority, dueDate, projectId, id]
-    );
+
+    // Accept both camelCase and snake_case from clients
+    const body: Record<string, any> = req.body as any;
+
+    const candidateMappings: Array<{ bodyKeys: string[]; column: string }> = [
+      { bodyKeys: ['title'], column: 'title' },
+      { bodyKeys: ['description'], column: 'description' },
+      { bodyKeys: ['status'], column: 'status' },
+      { bodyKeys: ['priority'], column: 'priority' },
+      { bodyKeys: ['due_date', 'dueDate'], column: 'due_date' },
+      { bodyKeys: ['project_id', 'projectId'], column: 'project_id' },
+      { bodyKeys: ['start_date', 'startDate'], column: 'start_date' },
+      { bodyKeys: ['estimated_hours', 'estimatedHours'], column: 'estimated_hours' },
+      { bodyKeys: ['actual_hours', 'actualHours'], column: 'actual_hours' },
+      { bodyKeys: ['progress_percentage', 'progressPercentage'], column: 'progress_percentage' },
+      { bodyKeys: ['assignee_id', 'assigneeId'], column: 'assignee_id' },
+      { bodyKeys: ['parent_task_id', 'parentTaskId'], column: 'parent_task_id' },
+      { bodyKeys: ['sprint_id', 'sprintId'], column: 'sprint_id' }
+    ];
+
+    const setFragments: string[] = [];
+    const values: any[] = [];
+
+    for (const mapping of candidateMappings) {
+      const foundKey = mapping.bodyKeys.find((k) => Object.prototype.hasOwnProperty.call(body, k));
+      if (foundKey !== undefined) {
+        setFragments.push(`${mapping.column} = ?`);
+        values.push(body[foundKey]);
+      }
+    }
+
+    if (setFragments.length === 0) {
+      return res.status(400).json({ message: 'No valid updates provided' });
+    }
+
+    // Always bump updated_at
+    setFragments.push('updated_at = CURRENT_TIMESTAMP');
+
+    const query = `UPDATE tasks SET ${setFragments.join(', ')} WHERE id = ?`;
+    values.push(id);
+
+    const [result] = await pool.execute(query, values);
 
     if ((result as any).affectedRows === 0) {
       return res.status(404).json({ message: 'Task not found' });
