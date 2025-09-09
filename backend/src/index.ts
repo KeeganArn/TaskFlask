@@ -24,6 +24,7 @@ import clientsRouter from './routes/clients';
 import ticketsRouter from './routes/tickets';
 import clientAuthRouter from './routes/clientAuth';
 import crmRouter from './routes/crm';
+import integrationsRouter from './routes/integrations';
 
 const app = express();
 const server = createServer(app);
@@ -67,6 +68,7 @@ app.use('/api/clients', clientsRouter);
 app.use('/api/tickets', ticketsRouter);
 app.use('/api/client-auth', clientAuthRouter);
 app.use('/api/crm', crmRouter);
+app.use('/api/integrations', integrationsRouter);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -168,6 +170,21 @@ app.get('/api/docs', (req, res) => {
       'team_lead': 'Lead team members and manage assigned projects',
       'member': 'Work on tasks and projects',
       'viewer': 'Read-only access to assigned projects'
+    }
+  });
+});
+
+// Minimal OpenAPI spec (expand later)
+app.get('/api/openapi.json', (req, res) => {
+  res.json({
+    openapi: '3.0.0',
+    info: { title: 'TaskFlask API', version: '2.0.0' },
+    paths: {
+      '/api/auth/login': { post: { summary: 'Login', responses: { '200': { description: 'OK' } } } },
+      '/api/api-keys': { get: { summary: 'List API keys' }, post: { summary: 'Create API key' } },
+      '/api/integrations': { get: { summary: 'List integrations' } },
+      '/api/integrations/connect': { post: { summary: 'Connect integration' } },
+      '/api/integrations/disconnect': { post: { summary: 'Disconnect integration' } },
     }
   });
 });

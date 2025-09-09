@@ -803,3 +803,38 @@ ALTER TABLE activities ADD FOREIGN KEY (deal_id) REFERENCES deals(id) ON DELETE 
 ALTER TABLE activities ADD FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE SET NULL;
 ALTER TABLE activities ADD FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE SET NULL;
 ALTER TABLE activities ADD FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE;
+
+-- =========================
+-- Developer Integrations
+-- =========================
+
+CREATE TABLE IF NOT EXISTS integration_connections (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  organization_id INT NOT NULL,
+  provider VARCHAR(50) NOT NULL,
+  access_token VARCHAR(1000) NULL,
+  refresh_token VARCHAR(1000) NULL,
+  settings JSON DEFAULT NULL,
+  connected_by INT NULL,
+  connected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY unique_provider_per_org (organization_id, provider)
+);
+
+CREATE TABLE IF NOT EXISTS integration_events (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  organization_id INT NOT NULL,
+  provider VARCHAR(50) NOT NULL,
+  event_type VARCHAR(100) NOT NULL,
+  payload JSON NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_integration_connections_org ON integration_connections(organization_id);
+CREATE INDEX IF NOT EXISTS idx_integration_events_org ON integration_events(organization_id);
+CREATE INDEX IF NOT EXISTS idx_integration_events_provider ON integration_events(provider);
+
+ALTER TABLE integration_connections ADD FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
+ALTER TABLE integration_connections ADD FOREIGN KEY (connected_by) REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE integration_events ADD FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;

@@ -348,19 +348,30 @@ const OrganizationSettings: React.FC = () => {
               <h4 className="text-sm font-medium text-gray-900">Theme</h4>
               <p className="text-xs text-gray-500">Your preference is saved on this device</p>
             </div>
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => setTheme('light')}
-                className={`px-3 py-2 rounded border ${theme === 'light' ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-700 border-gray-300'}`}
-              >
-                Light
-              </button>
-              <button
-                onClick={() => setTheme('dark')}
-                className={`px-3 py-2 rounded border ${theme === 'dark' ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-700 border-gray-300'}`}
-              >
-                Dark
-              </button>
+            <div className="flex items-center space-x-4">
+              <div className="theme-slider" title="Click to toggle theme">
+                <div
+                  className="theme-slider-thumb"
+                  style={{ left: theme === 'dark' ? 'calc(100% - 0.5rem)' : '0' }}
+                  onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                  role="button"
+                  aria-label="Toggle theme"
+                />
+              </div>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setTheme('light')}
+                  className={`px-3 py-2 rounded border ${theme === 'light' ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-700 border-gray-300'}`}
+                >
+                  Light
+                </button>
+                <button
+                  onClick={() => setTheme('dark')}
+                  className={`px-3 py-2 rounded border ${theme === 'dark' ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-700 border-gray-300'}`}
+                >
+                  Dark
+                </button>
+              </div>
             </div>
           </div>
         </div>

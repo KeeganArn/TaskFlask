@@ -451,6 +451,16 @@ export const requirePlanIn = (allowedPlans: string[]) => {
       if (!req.user) {
         return res.status(401).json({ message: 'Authentication required' });
       }
+      // Org owners/admins bypass plan checks
+      const roleName = req.user.role?.name || '';
+      if (
+        roleName === 'owner' ||
+        roleName === 'org_owner' ||
+        hasPermission(req.user.permissions, 'org.*') ||
+        hasPermission(req.user.permissions, '*')
+      ) {
+        return next();
+      }
       const plan = await getOrganizationPlanSlug(req.user.organization_id);
       if (!allowedPlans.includes(plan)) {
         return res.status(403).json({ message: 'Your plan does not include this feature', current_plan: plan, allowed_plans: allowedPlans });

@@ -18,6 +18,8 @@ import Billing from './pages/Billing';
 import TimeTracking from './pages/TimeTracking';
 import Analytics from './pages/Analytics';
 import Documents from './pages/Documents';
+import DevPortal from './pages/DevPortal';
+import Integrations from './pages/Integrations';
 import Clients from './pages/Clients';
 import TicketTypes from './pages/TicketTypes';
 import OrgTickets from './pages/OrgTickets';
@@ -120,6 +122,8 @@ function App() {
                     <Route path="/analytics" element={<Analytics />} />
                     
                     <Route path="/documents" element={<Documents />} />
+                    <Route path="/dev-portal" element={<DevPortal />} />
+                    <Route path="/integrations" element={<Integrations />} />
                     
                     <Route path="/messages" element={<Messages />} />
                   
