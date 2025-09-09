@@ -15,6 +15,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { useAuth, usePermission } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { organizationsApi } from '../services/api';
 import { Organization } from '../types';
 
@@ -22,6 +23,7 @@ const OrganizationSettings: React.FC = () => {
   const { organization: currentOrg, user } = useAuth();
   const canEditOrg = usePermission('org.edit');
   const canViewMembers = usePermission('users.view');
+  const { theme, setTheme, toggleTheme } = useTheme();
 
   const [organization, setOrganization] = useState<Organization | null>(currentOrg);
   const [isEditing, setIsEditing] = useState(false);
@@ -329,6 +331,36 @@ const OrganizationSettings: React.FC = () => {
                   <strong>Registration URL:</strong> {window.location.origin}/register
                 </p>
               </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Theme Settings */}
+      <div className="bg-white shadow rounded-lg">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h2 className="text-lg font-medium text-gray-900">Appearance</h2>
+          <p className="text-sm text-gray-500">Choose between light and dark themes</p>
+        </div>
+        <div className="px-6 py-4 space-y-4">
+          <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+            <div>
+              <h4 className="text-sm font-medium text-gray-900">Theme</h4>
+              <p className="text-xs text-gray-500">Your preference is saved on this device</p>
+            </div>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => setTheme('light')}
+                className={`px-3 py-2 rounded border ${theme === 'light' ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-700 border-gray-300'}`}
+              >
+                Light
+              </button>
+              <button
+                onClick={() => setTheme('dark')}
+                className={`px-3 py-2 rounded border ${theme === 'dark' ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-700 border-gray-300'}`}
+              >
+                Dark
+              </button>
             </div>
           </div>
         </div>

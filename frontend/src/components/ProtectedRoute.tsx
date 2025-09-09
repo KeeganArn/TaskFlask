@@ -26,9 +26,14 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const location = useLocation();
   const [planSlug, setPlanSlug] = useState<string | null>(null);
   const [loadingPlan, setLoadingPlan] = useState<boolean>(!!requiredPlanSlug);
+  const isOrgOwner = hasPermission('org.*') || hasPermission('*');
 
   useEffect(() => {
-    if (!requiredPlanSlug) return;
+    // Org owners bypass plan checks
+    if (!requiredPlanSlug || isOrgOwner) {
+      setLoadingPlan(false);
+      return;
+    }
     let mounted = true;
     (async () => {
       try {
@@ -41,7 +46,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
       }
     })();
     return () => { mounted = false; };
-  }, [requiredPlanSlug]);
+  }, [requiredPlanSlug, isOrgOwner]);
 
   // Show loading spinner while checking auth
   if (isLoading || loadingPlan) {
@@ -70,7 +75,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   // Check plan requirement (e.g., hide for Basic/free)
-  if (requiredPlanSlug) {
+  if (requiredPlanSlug && !isOrgOwner) {
     const current = planSlug || 'free';
     const satisfies = requiredPlanSlug === 'pro' ? (current === 'pro' || current === 'enterprise') : (current === 'enterprise');
     if (!satisfies) {

@@ -96,105 +96,56 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const canViewTasks = usePermission('tasks.view') && planSlug !== 'free';
   const canManageTasks = usePermission('tasks.edit') && planSlug !== 'free';
   const canUseCrm = planSlug !== 'free';
+  const isOrgOwner = usePermission('org.*') || usePermission('*');
 
-  const navigation = [
+  const navigationSections = [
     {
-      name: 'Dashboard',
-      href: '/dashboard',
-      icon: LayoutDashboard,
-      show: true
+      header: 'Overview',
+      items: [
+        { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, show: true },
+      ]
     },
     {
-      name: 'Companies',
-      href: '/crm/companies',
-      icon: Building2,
-      show: canUseCrm
+      header: 'CRM',
+      items: [
+        { name: 'Companies', href: '/crm/companies', icon: Building2, show: canUseCrm || isOrgOwner },
+        { name: 'Contacts', href: '/crm/contacts', icon: Users, show: canUseCrm || isOrgOwner },
+        { name: 'Deals', href: '/crm/deals', icon: FolderOpen, show: canUseCrm || isOrgOwner },
+        { name: 'Activities', href: '/crm/activities', icon: Clock, show: canUseCrm || isOrgOwner },
+      ]
     },
     {
-      name: 'Contacts',
-      href: '/crm/contacts',
-      icon: Users,
-      show: canUseCrm
+      header: 'Work',
+      items: [
+        { name: 'Projects', href: '/projects', icon: FolderOpen, show: canViewProjects },
+        { name: 'Tasks', href: '/tasks', icon: CheckSquare, show: canViewTasks },
+        { name: 'Time Tracking', href: '/time-tracking', icon: Clock, show: planSlug !== 'free' },
+        { name: 'Documents', href: '/documents', icon: FileText, show: planSlug !== 'free' },
+      ]
     },
     {
-      name: 'Deals',
-      href: '/crm/deals',
-      icon: FolderOpen,
-      show: canUseCrm
+      header: 'Support',
+      items: [
+        { name: 'Tickets', href: '/tickets-org', icon: FileText, show: canViewTasks },
+        { name: 'Clients', href: '/clients', icon: Users, show: canViewClients },
+      ]
     },
     {
-      name: 'Activities',
-      href: '/crm/activities',
-      icon: Clock,
-      show: canUseCrm
+      header: 'Communication',
+      items: [
+        { name: 'Messages', href: '/messages', icon: MessageCircle, show: true },
+        { name: 'Analytics', href: '/analytics', icon: BarChart3, show: planSlug !== 'free' },
+      ]
     },
     {
-      name: 'Projects',
-      href: '/projects',
-      icon: FolderOpen,
-      show: canViewProjects
+      header: 'Admin',
+      items: [
+        { name: 'Team', href: '/team', icon: Users, show: canViewUsers },
+        { name: 'Settings', href: '/settings', icon: Settings, show: canViewSettings },
+        { name: 'Billing', href: '/billing', icon: CreditCard, show: true },
+      ]
     },
-    {
-      name: 'Tasks',
-      href: '/tasks',
-      icon: CheckSquare,
-      show: canViewTasks
-    },
-    {
-      name: 'Team',
-      href: '/team',
-      icon: Users,
-      show: canViewUsers
-    },
-    {
-      name: 'Clients',
-      href: '/clients',
-      icon: Users,
-      show: canViewClients
-    },
-    {
-      name: 'Tickets',
-      href: '/tickets-org',
-      icon: FileText,
-      show: canViewTasks
-    },
-    {
-      name: 'Messages',
-      href: '/messages',
-      icon: MessageCircle,
-      show: true
-    },
-    {
-      name: 'Time Tracking',
-      href: '/time-tracking',
-      icon: Clock,
-      show: planSlug !== 'free'
-    },
-    {
-      name: 'Analytics',
-      href: '/analytics',
-      icon: BarChart3,
-      show: planSlug !== 'free'
-    },
-    {
-      name: 'Documents',
-      href: '/documents',
-      icon: FileText,
-      show: planSlug !== 'free'
-    },
-    {
-      name: 'Settings',
-      href: '/settings',
-      icon: Settings,
-      show: canViewSettings
-    },
-    {
-      name: 'Billing',
-      href: '/billing',
-      icon: CreditCard,
-      show: true
-    }
-  ].filter(item => item.show);
+  ];
 
   const handleLogout = () => {
     logout();
@@ -246,27 +197,34 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               </div>
             </div>
             
-            <nav className="mt-5 px-2 space-y-1">
-            {navigation.map((item) => {
-                const isActive = location.pathname === item.href;
-              return (
-                <Link
-                  key={item.name}
-                  to={item.href}
-                    className={`group flex items-center px-2 py-2 text-base font-medium rounded-md ${
-                      isActive
-                        ? 'bg-primary-100 text-primary-900'
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                  }`}
-                  onClick={() => setSidebarOpen(false)}
-                >
-                    <item.icon className={`mr-4 h-6 w-6 ${
-                      isActive ? 'text-primary-500' : 'text-gray-400 group-hover:text-gray-500'
-                  }`} />
-                  {item.name}
-                </Link>
-              );
-            })}
+            <nav className="mt-5 px-2 space-y-6">
+              {navigationSections.map((section) => (
+                <div key={section.header}>
+                  <div className="px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">{section.header}</div>
+                  <div className="mt-2 space-y-1">
+                    {section.items.filter(i => i.show).map((item) => {
+                      const isActive = location.pathname === item.href;
+                      return (
+                        <Link
+                          key={item.name}
+                          to={item.href}
+                          className={`group flex items-center px-2 py-2 text-base font-medium rounded-md ${
+                            isActive
+                              ? 'bg-primary-100 text-primary-900'
+                              : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                          }`}
+                          onClick={() => setSidebarOpen(false)}
+                        >
+                          <item.icon className={`mr-4 h-6 w-6 ${
+                            isActive ? 'text-primary-500' : 'text-gray-400 group-hover:text-gray-500'
+                          }`} />
+                          {item.name}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </nav>
           </div>
         </div>
@@ -301,26 +259,33 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 </div>
               </div>
               
-              <nav className="mt-5 flex-1 px-2 space-y-1">
-                {navigation.map((item) => {
-                  const isActive = location.pathname === item.href;
-                  return (
-                    <Link
-                      key={item.name}
-                      to={item.href}
-                      className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
-                        isActive
-                          ? 'bg-primary-100 text-primary-900'
-                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                      }`}
-                    >
-                      <item.icon className={`mr-3 h-5 w-5 ${
-                        isActive ? 'text-primary-500' : 'text-gray-400 group-hover:text-gray-500'
-                      }`} />
-                      {item.name}
-                    </Link>
-                  );
-                })}
+              <nav className="mt-5 flex-1 px-2 space-y-6">
+                {navigationSections.map((section) => (
+                  <div key={section.header}>
+                    <div className="px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">{section.header}</div>
+                    <div className="mt-2 space-y-1">
+                      {section.items.filter(i => i.show).map((item) => {
+                        const isActive = location.pathname === item.href;
+                        return (
+                          <Link
+                            key={item.name}
+                            to={item.href}
+                            className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
+                              isActive
+                                ? 'bg-primary-100 text-primary-900'
+                                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                            }`}
+                          >
+                            <item.icon className={`mr-3 h-5 w-5 ${
+                              isActive ? 'text-primary-500' : 'text-gray-400 group-hover:text-gray-500'
+                            }`} />
+                            {item.name}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
               </nav>
             </div>
             </div>
@@ -382,13 +347,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 <Bell className="h-6 w-6" />
               </button>
 
-              <button
-                onClick={toggleTheme}
-                className="ml-3 bg-white px-2 py-1 rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 text-gray-600 hover:text-gray-800"
-                title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-              >
-                {theme === 'dark' ? 'Light' : 'Dark'}
-              </button>
+              {/* Theme toggle moved to Settings */}
 
               {/* Profile dropdown */}
               <div className="ml-3 relative z-50" data-dropdown="user-menu">

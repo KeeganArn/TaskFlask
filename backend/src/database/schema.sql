@@ -209,42 +209,42 @@ CREATE TABLE IF NOT EXISTS invitations (
 -- End of core tables
 
 -- All indexes (created at the end to avoid dependency issues)
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_organization ON users(organization_id);
-CREATE INDEX idx_users_status ON users(user_status);
-CREATE INDEX idx_users_last_seen ON users(last_seen);
-CREATE INDEX idx_organizations_slug ON organizations(slug);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_organization ON users(organization_id);
+CREATE INDEX IF NOT EXISTS idx_users_status ON users(user_status);
+CREATE INDEX IF NOT EXISTS idx_users_last_seen ON users(last_seen);
+CREATE INDEX IF NOT EXISTS idx_organizations_slug ON organizations(slug);
 
 -- Core indexes only
-CREATE INDEX idx_users_email_verification ON users(email_verification_token);
-CREATE INDEX idx_users_password_reset ON users(password_reset_token);
-CREATE INDEX idx_org_members_org_user ON organization_members(organization_id, user_id);
-CREATE INDEX idx_org_members_user ON organization_members(user_id);
-CREATE INDEX idx_org_members_status ON organization_members(status);
-CREATE INDEX idx_projects_organization ON projects(organization_id);
-CREATE INDEX idx_projects_owner ON projects(owner_id);
-CREATE INDEX idx_projects_status ON projects(status);
-CREATE INDEX idx_project_members_project ON project_members(project_id);
-CREATE INDEX idx_project_members_user ON project_members(user_id);
-CREATE INDEX idx_tasks_project ON tasks(project_id);
-CREATE INDEX idx_tasks_organization ON tasks(organization_id);
-CREATE INDEX idx_tasks_assignee ON tasks(assignee_id);
-CREATE INDEX idx_tasks_reporter ON tasks(reporter_id);
-CREATE INDEX idx_tasks_status ON tasks(status);
-CREATE INDEX idx_tasks_priority ON tasks(priority);
-CREATE INDEX idx_tasks_due_date ON tasks(due_date);
-CREATE INDEX idx_task_comments_task ON task_comments(task_id);
-CREATE INDEX idx_time_entries_task ON time_entries(task_id);
-CREATE INDEX idx_time_entries_user ON time_entries(user_id);
-CREATE INDEX idx_time_entries_date ON time_entries(date_logged);
-CREATE INDEX idx_audit_logs_org ON audit_logs(organization_id);
-CREATE INDEX idx_audit_logs_user ON audit_logs(user_id);
-CREATE INDEX idx_audit_logs_resource ON audit_logs(resource_type, resource_id);
-CREATE INDEX idx_invitations_token ON invitations(token);
-CREATE INDEX idx_invitations_email ON invitations(email);
+CREATE INDEX IF NOT EXISTS idx_users_email_verification ON users(email_verification_token);
+CREATE INDEX IF NOT EXISTS idx_users_password_reset ON users(password_reset_token);
+CREATE INDEX IF NOT EXISTS idx_org_members_org_user ON organization_members(organization_id, user_id);
+CREATE INDEX IF NOT EXISTS idx_org_members_user ON organization_members(user_id);
+CREATE INDEX IF NOT EXISTS idx_org_members_status ON organization_members(status);
+CREATE INDEX IF NOT EXISTS idx_projects_organization ON projects(organization_id);
+CREATE INDEX IF NOT EXISTS idx_projects_owner ON projects(owner_id);
+CREATE INDEX IF NOT EXISTS idx_projects_status ON projects(status);
+CREATE INDEX IF NOT EXISTS idx_project_members_project ON project_members(project_id);
+CREATE INDEX IF NOT EXISTS idx_project_members_user ON project_members(user_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_organization ON tasks(organization_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_assignee ON tasks(assignee_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_reporter ON tasks(reporter_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
+CREATE INDEX IF NOT EXISTS idx_tasks_priority ON tasks(priority);
+CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(due_date);
+CREATE INDEX IF NOT EXISTS idx_task_comments_task ON task_comments(task_id);
+CREATE INDEX IF NOT EXISTS idx_time_entries_task ON time_entries(task_id);
+CREATE INDEX IF NOT EXISTS idx_time_entries_user ON time_entries(user_id);
+CREATE INDEX IF NOT EXISTS idx_time_entries_date ON time_entries(date_logged);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_org ON audit_logs(organization_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_user ON audit_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_resource ON audit_logs(resource_type, resource_id);
+CREATE INDEX IF NOT EXISTS idx_invitations_token ON invitations(token);
+CREATE INDEX IF NOT EXISTS idx_invitations_email ON invitations(email);
 
 -- Chat rooms for messaging
-CREATE TABLE chat_rooms (
+CREATE TABLE IF NOT EXISTS chat_rooms (
   id INT AUTO_INCREMENT PRIMARY KEY,
   organization_id INT NOT NULL,
   name VARCHAR(255),
@@ -256,7 +256,7 @@ CREATE TABLE chat_rooms (
 );
 
 -- Chat participants
-CREATE TABLE chat_participants (
+CREATE TABLE IF NOT EXISTS chat_participants (
   id INT AUTO_INCREMENT PRIMARY KEY,
   chat_room_id INT NOT NULL,
   user_id INT NOT NULL,
@@ -267,7 +267,7 @@ CREATE TABLE chat_participants (
 );
 
 -- Messages
-CREATE TABLE messages (
+CREATE TABLE IF NOT EXISTS messages (
   id INT AUTO_INCREMENT PRIMARY KEY,
   chat_room_id INT NOT NULL,
   sender_id INT NOT NULL,
@@ -280,7 +280,7 @@ CREATE TABLE messages (
 );
 
 -- Message reactions
-CREATE TABLE message_reactions (
+CREATE TABLE IF NOT EXISTS message_reactions (
   id INT AUTO_INCREMENT PRIMARY KEY,
   message_id INT NOT NULL,
   user_id INT NOT NULL,
@@ -290,15 +290,15 @@ CREATE TABLE message_reactions (
 );
 
 -- Indexes for messaging tables
-CREATE INDEX idx_chat_rooms_organization ON chat_rooms(organization_id);
-CREATE INDEX idx_chat_rooms_type ON chat_rooms(type);
-CREATE INDEX idx_chat_participants_room ON chat_participants(chat_room_id);
-CREATE INDEX idx_chat_participants_user ON chat_participants(user_id);
-CREATE INDEX idx_messages_room ON messages(chat_room_id);
-CREATE INDEX idx_messages_sender ON messages(sender_id);
-CREATE INDEX idx_messages_created ON messages(created_at);
-CREATE INDEX idx_message_reactions_message ON message_reactions(message_id);
-CREATE INDEX idx_message_reactions_user ON message_reactions(user_id);
+CREATE INDEX IF NOT EXISTS idx_chat_rooms_organization ON chat_rooms(organization_id);
+CREATE INDEX IF NOT EXISTS idx_chat_rooms_type ON chat_rooms(type);
+CREATE INDEX IF NOT EXISTS idx_chat_participants_room ON chat_participants(chat_room_id);
+CREATE INDEX IF NOT EXISTS idx_chat_participants_user ON chat_participants(user_id);
+CREATE INDEX IF NOT EXISTS idx_messages_room ON messages(chat_room_id);
+CREATE INDEX IF NOT EXISTS idx_messages_sender ON messages(sender_id);
+CREATE INDEX IF NOT EXISTS idx_messages_created ON messages(created_at);
+CREATE INDEX IF NOT EXISTS idx_message_reactions_message ON message_reactions(message_id);
+CREATE INDEX IF NOT EXISTS idx_message_reactions_user ON message_reactions(user_id);
 
 -- Foreign key constraints for messaging tables
 ALTER TABLE chat_rooms ADD FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
@@ -312,7 +312,7 @@ ALTER TABLE message_reactions ADD FOREIGN KEY (message_id) REFERENCES messages(i
 ALTER TABLE message_reactions ADD FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
 
 -- Subscription Plans
-CREATE TABLE subscription_plans (
+CREATE TABLE IF NOT EXISTS subscription_plans (
   id INT AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(50) NOT NULL,
   slug VARCHAR(50) UNIQUE NOT NULL,
@@ -328,7 +328,7 @@ CREATE TABLE subscription_plans (
 );
 
 -- Organization Subscriptions
-CREATE TABLE organization_subscriptions (
+CREATE TABLE IF NOT EXISTS organization_subscriptions (
   id INT AUTO_INCREMENT PRIMARY KEY,
   organization_id INT NOT NULL,
   plan_id INT NOT NULL,
@@ -345,7 +345,7 @@ CREATE TABLE organization_subscriptions (
 );
 
 -- Usage Tracking
-CREATE TABLE usage_tracking (
+CREATE TABLE IF NOT EXISTS usage_tracking (
   id INT AUTO_INCREMENT PRIMARY KEY,
   organization_id INT NOT NULL,
   metric_name VARCHAR(50) NOT NULL, -- 'storage_used', 'api_calls', 'users_count'
@@ -356,7 +356,7 @@ CREATE TABLE usage_tracking (
 );
 
 -- Billing History
-CREATE TABLE billing_invoices (
+CREATE TABLE IF NOT EXISTS billing_invoices (
   id INT AUTO_INCREMENT PRIMARY KEY,
   organization_id INT NOT NULL,
   subscription_id INT NOT NULL,
@@ -371,7 +371,7 @@ CREATE TABLE billing_invoices (
 );
 
 -- Time Tracking (Pro Feature)
-CREATE TABLE time_tracking_sessions (
+CREATE TABLE IF NOT EXISTS time_tracking_sessions (
   id INT AUTO_INCREMENT PRIMARY KEY,
   user_id INT NOT NULL,
   task_id INT NOT NULL,
@@ -387,7 +387,7 @@ CREATE TABLE time_tracking_sessions (
 );
 
 -- Custom Branding (Pro Feature)
-CREATE TABLE organization_branding (
+CREATE TABLE IF NOT EXISTS organization_branding (
   id INT AUTO_INCREMENT PRIMARY KEY,
   organization_id INT NOT NULL UNIQUE,
   logo_url VARCHAR(500),
@@ -401,7 +401,7 @@ CREATE TABLE organization_branding (
 );
 
 -- Video/Voice Calls
-CREATE TABLE call_sessions (
+CREATE TABLE IF NOT EXISTS call_sessions (
   id INT AUTO_INCREMENT PRIMARY KEY,
   room_id VARCHAR(100) UNIQUE NOT NULL,
   chat_room_id INT,
@@ -418,7 +418,7 @@ CREATE TABLE call_sessions (
 );
 
 -- Call Participants
-CREATE TABLE call_participants (
+CREATE TABLE IF NOT EXISTS call_participants (
   id INT AUTO_INCREMENT PRIMARY KEY,
   call_session_id INT NOT NULL,
   user_id INT NOT NULL,
@@ -430,23 +430,10 @@ CREATE TABLE call_participants (
   UNIQUE KEY unique_call_participant (call_session_id, user_id)
 );
 
--- Enterprise Features - Audit Logs
-CREATE TABLE audit_logs (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  organization_id INT NOT NULL,
-  user_id INT,
-  action VARCHAR(100) NOT NULL,
-  resource_type VARCHAR(50) NOT NULL,
-  resource_id INT,
-  old_values JSON,
-  new_values JSON,
-  ip_address VARCHAR(45),
-  user_agent TEXT,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+-- Enterprise Features - Audit Logs (removed duplicate table definition; see earlier IF NOT EXISTS table)
 
 -- API Keys for Enterprise
-CREATE TABLE api_keys (
+CREATE TABLE IF NOT EXISTS api_keys (
   id INT AUTO_INCREMENT PRIMARY KEY,
   organization_id INT NOT NULL,
   name VARCHAR(100) NOT NULL,
@@ -462,10 +449,20 @@ CREATE TABLE api_keys (
 );
 
 -- Insert default subscription plans
-INSERT INTO subscription_plans (name, slug, price_monthly, price_yearly, max_users, max_organizations, max_storage_gb, features) VALUES
+INSERT INTO subscription_plans (name, slug, price_monthly, price_yearly, max_users, max_organizations, max_storage_gb, features)
+VALUES
 ('Free', 'free', 0.00, 0.00, 5, 1, 1, '["basic_messaging", "basic_tasks", "basic_projects"]'),
 ('Pro', 'pro', 15.00, 150.00, 25, 3, 10, '["time_tracking", "custom_branding", "analytics", "priority_support", "advanced_permissions"]'),
-('Enterprise', 'enterprise', 50.00, 500.00, NULL, NULL, 100, '["sso", "audit_logs", "api_access", "custom_integrations", "dedicated_support", "white_labeling"]');
+('Enterprise', 'enterprise', 50.00, 500.00, NULL, NULL, 100, '["sso", "audit_logs", "api_access", "custom_integrations", "dedicated_support", "white_labeling"]')
+ON DUPLICATE KEY UPDATE
+  name = VALUES(name),
+  price_monthly = VALUES(price_monthly),
+  price_yearly = VALUES(price_yearly),
+  max_users = VALUES(max_users),
+  max_organizations = VALUES(max_organizations),
+  max_storage_gb = VALUES(max_storage_gb),
+  features = VALUES(features),
+  is_active = TRUE;
 
 -- Indexes for subscription tables
 CREATE INDEX idx_org_subscriptions_org ON organization_subscriptions(organization_id);
@@ -484,9 +481,7 @@ CREATE INDEX idx_call_sessions_org ON call_sessions(organization_id);
 CREATE INDEX idx_call_sessions_initiator ON call_sessions(initiated_by);
 CREATE INDEX idx_call_participants_session ON call_participants(call_session_id);
 CREATE INDEX idx_call_participants_user ON call_participants(user_id);
-CREATE INDEX idx_audit_logs_org_new ON audit_logs(organization_id);
-CREATE INDEX idx_audit_logs_user_new ON audit_logs(user_id);
-CREATE INDEX idx_audit_logs_resource ON audit_logs(resource_type, resource_id);
+-- audit_logs indexes: created earlier; keep only created_at here
 CREATE INDEX idx_audit_logs_created ON audit_logs(created_at);
 CREATE INDEX idx_api_keys_org ON api_keys(organization_id);
 CREATE INDEX idx_api_keys_prefix ON api_keys(key_prefix);
@@ -507,13 +502,12 @@ ALTER TABLE call_sessions ADD FOREIGN KEY (organization_id) REFERENCES organizat
 ALTER TABLE call_sessions ADD FOREIGN KEY (initiated_by) REFERENCES users(id) ON DELETE CASCADE;
 ALTER TABLE call_participants ADD FOREIGN KEY (call_session_id) REFERENCES call_sessions(id) ON DELETE CASCADE;
 ALTER TABLE call_participants ADD FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
-ALTER TABLE audit_logs ADD FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
-ALTER TABLE audit_logs ADD FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL;
+-- audit_logs FKs are already defined in the table; avoid duplicate ALTERs
 ALTER TABLE api_keys ADD FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
 ALTER TABLE api_keys ADD FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE;
 
 -- Documents
-CREATE TABLE documents (
+CREATE TABLE IF NOT EXISTS documents (
   id INT AUTO_INCREMENT PRIMARY KEY,
   organization_id INT NOT NULL,
   title VARCHAR(255) NOT NULL,
@@ -525,7 +519,7 @@ CREATE TABLE documents (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
-CREATE TABLE document_view_sessions (
+CREATE TABLE IF NOT EXISTS document_view_sessions (
   id INT AUTO_INCREMENT PRIMARY KEY,
   organization_id INT NOT NULL,
   document_id INT NOT NULL,
@@ -538,15 +532,15 @@ CREATE TABLE document_view_sessions (
 );
 
 -- Indexes for documents
-CREATE INDEX idx_documents_org ON documents(organization_id);
-CREATE INDEX idx_documents_creator ON documents(created_by);
-CREATE INDEX idx_documents_updated ON documents(updated_at);
+CREATE INDEX IF NOT EXISTS idx_documents_org ON documents(organization_id);
+CREATE INDEX IF NOT EXISTS idx_documents_creator ON documents(created_by);
+CREATE INDEX IF NOT EXISTS idx_documents_updated ON documents(updated_at);
 
 -- Indexes for document view sessions
-CREATE INDEX idx_doc_views_org ON document_view_sessions(organization_id);
-CREATE INDEX idx_doc_views_doc ON document_view_sessions(document_id);
-CREATE INDEX idx_doc_views_user ON document_view_sessions(user_id);
-CREATE INDEX idx_doc_views_active ON document_view_sessions(ended_at, last_heartbeat);
+CREATE INDEX IF NOT EXISTS idx_doc_views_org ON document_view_sessions(organization_id);
+CREATE INDEX IF NOT EXISTS idx_doc_views_doc ON document_view_sessions(document_id);
+CREATE INDEX IF NOT EXISTS idx_doc_views_user ON document_view_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_doc_views_active ON document_view_sessions(ended_at, last_heartbeat);
 
 -- FKs for documents
 ALTER TABLE documents ADD FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
@@ -579,7 +573,7 @@ ALTER TABLE support_tickets ADD FOREIGN KEY (organization_id) REFERENCES organiz
 ALTER TABLE support_tickets ADD FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
 
 -- Clients (external customers managed by organizations)
-CREATE TABLE clients (
+CREATE TABLE IF NOT EXISTS clients (
   id INT AUTO_INCREMENT PRIMARY KEY,
   organization_id INT NOT NULL,
   name VARCHAR(150) NOT NULL,
@@ -593,7 +587,7 @@ CREATE TABLE clients (
 );
 
 -- Client user accounts (login identities for clients)
-CREATE TABLE client_users (
+CREATE TABLE IF NOT EXISTS client_users (
   id INT AUTO_INCREMENT PRIMARY KEY,
   client_id INT NOT NULL,
   organization_id INT NOT NULL,
@@ -609,21 +603,21 @@ CREATE TABLE client_users (
 );
 
 -- Ticket types per organization (plan-limited)
-CREATE TABLE ticket_types (
+CREATE TABLE IF NOT EXISTS ticket_types (
   id INT AUTO_INCREMENT PRIMARY KEY,
   organization_id INT NOT NULL,
   key_slug VARCHAR(50) NOT NULL,
   display_name VARCHAR(100) NOT NULL,
   description TEXT,
   is_active BOOLEAN DEFAULT TRUE,
-  created_by INT NOT NULL,
+  created_by INT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY unique_ticket_type_key (organization_id, key_slug)
 );
 
 -- Tickets (can be created by org users or client users)
-CREATE TABLE tickets (
+CREATE TABLE IF NOT EXISTS tickets (
   id INT AUTO_INCREMENT PRIMARY KEY,
   organization_id INT NOT NULL,
   ticket_type_id INT NOT NULL,
@@ -639,7 +633,7 @@ CREATE TABLE tickets (
 );
 
 -- Ticket comments (by org users or client users)
-CREATE TABLE ticket_comments (
+CREATE TABLE IF NOT EXISTS ticket_comments (
   id INT AUTO_INCREMENT PRIMARY KEY,
   ticket_id INT NOT NULL,
   author_user_id INT NULL,
@@ -650,15 +644,15 @@ CREATE TABLE ticket_comments (
 );
 
 -- Indexes for clients/tickets
-CREATE INDEX idx_clients_org ON clients(organization_id);
-CREATE INDEX idx_client_users_org ON client_users(organization_id);
-CREATE INDEX idx_client_users_client ON client_users(client_id);
-CREATE INDEX idx_ticket_types_org ON ticket_types(organization_id);
-CREATE INDEX idx_tickets_org ON tickets(organization_id);
-CREATE INDEX idx_tickets_type ON tickets(ticket_type_id);
-CREATE INDEX idx_tickets_status ON tickets(status);
-CREATE INDEX idx_tickets_priority ON tickets(priority);
-CREATE INDEX idx_ticket_comments_ticket ON ticket_comments(ticket_id);
+CREATE INDEX IF NOT EXISTS idx_clients_org ON clients(organization_id);
+CREATE INDEX IF NOT EXISTS idx_client_users_org ON client_users(organization_id);
+CREATE INDEX IF NOT EXISTS idx_client_users_client ON client_users(client_id);
+CREATE INDEX IF NOT EXISTS idx_ticket_types_org ON ticket_types(organization_id);
+CREATE INDEX IF NOT EXISTS idx_tickets_org ON tickets(organization_id);
+CREATE INDEX IF NOT EXISTS idx_tickets_type ON tickets(ticket_type_id);
+CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status);
+CREATE INDEX IF NOT EXISTS idx_tickets_priority ON tickets(priority);
+CREATE INDEX IF NOT EXISTS idx_ticket_comments_ticket ON ticket_comments(ticket_id);
 
 -- Foreign keys for clients/tickets
 ALTER TABLE clients ADD FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
