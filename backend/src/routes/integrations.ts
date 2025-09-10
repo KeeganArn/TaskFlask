@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import pool from '../database/config';
 import { authenticate, requireOrganizationAdmin, AuthenticatedRequest } from '../middleware/rbac';
+import crypto from 'crypto';
+import { sendOutboundMessage } from '../services/notifications';
 
 const router = Router();
 
@@ -31,6 +33,20 @@ router.post('/connect', authenticate, requireOrganizationAdmin, async (req: Auth
     res.status(201).json({ message: 'Connected' });
   } catch (e) {
     res.status(500).json({ message: 'Failed to connect integration' });
+  }
+});
+
+// Outbound message (Slack/Teams) - simple helper
+router.post('/send', authenticate, requireOrganizationAdmin, async (req: AuthenticatedRequest, res) => {
+  try {
+    const { provider, channel, text, options } = req.body;
+    if (!provider || !channel || !text) {
+      return res.status(400).json({ message: 'provider, channel, and text are required' });
+    }
+    await sendOutboundMessage(provider, channel, text, options);
+    res.json({ ok: true });
+  } catch (e: any) {
+    res.status(500).json({ message: 'Failed to send message', error: e.message });
   }
 });
 

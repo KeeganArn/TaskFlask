@@ -1,4 +1,5 @@
 import express from 'express';
+import bodyParser from 'body-parser';
 import cors from 'cors';
 import helmet from 'helmet';
 import { createServer } from 'http';
@@ -25,6 +26,8 @@ import ticketsRouter from './routes/tickets';
 import clientAuthRouter from './routes/clientAuth';
 import crmRouter from './routes/crm';
 import integrationsRouter from './routes/integrations';
+import slackRouter from './routes/slack';
+import teamsRouter from './routes/teams';
 
 const app = express();
 const server = createServer(app);
@@ -39,6 +42,9 @@ app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true
 }));
+// Slack signature verification requires raw body for certain endpoints
+app.use('/api/integrations/slack/events', bodyParser.raw({ type: '*/*' }));
+app.use('/api/integrations/slack/commands', bodyParser.raw({ type: '*/*' }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -69,6 +75,8 @@ app.use('/api/tickets', ticketsRouter);
 app.use('/api/client-auth', clientAuthRouter);
 app.use('/api/crm', crmRouter);
 app.use('/api/integrations', integrationsRouter);
+app.use('/api/integrations/slack', slackRouter);
+app.use('/api/integrations/teams', teamsRouter);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
